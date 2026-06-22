@@ -30,6 +30,7 @@
     --dynasty-soft: rgba(201,72,91,0.14);
 
     --gold: #D4AF6A;
+    --gold-soft: rgba(212,175,106,0.14);
     --success: #5FB88A;
     --danger: #D4636B;
   }
@@ -54,6 +55,7 @@
     --dynasty-soft: rgba(179,58,76,0.12);
 
     --gold: #A87A2E;
+    --gold-soft: rgba(168,122,46,0.12);
     --success: #2E9A65;
     --danger: #C24148;
   }
@@ -276,7 +278,7 @@
   .home-eyebrow{ font-size:12.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.1em; font-weight:600; margin-bottom:10px; }
   .home-title{ font-family:'Fraunces', serif; font-size:36px; font-weight:600; margin-bottom:8px; letter-spacing:-0.01em; }
   .home-sub{ color:var(--text-dim); font-size:14.5px; margin-bottom:44px; }
-  .home-tiles{ display:grid; grid-template-columns: repeat(4, 1fr); gap:18px; }
+  .home-tiles{ display:grid; grid-template-columns: repeat(3, 1fr); gap:18px; }
   .home-tile{
     background: var(--surface); border:1px solid var(--border); border-radius:16px;
     padding:26px 24px; cursor:pointer; transition: border-color 0.15s, transform 0.12s;
@@ -400,6 +402,18 @@
         <span class="home-tile-stat-label">Not yet posted</span>
       </div>
     </div>
+
+    <div class="home-tile" onclick="goToApp('subscriptions')">
+      <div class="home-tile-icon" style="background:var(--gold-soft); color:var(--gold);"><i class="ti ti-credit-card"></i></div>
+      <div>
+        <div class="home-tile-title">Subscriptions</div>
+        <div class="home-tile-desc">Every service you pay for, personal and business.</div>
+      </div>
+      <div class="home-tile-stat">
+        <span class="home-tile-stat-num" id="home-stat-subscriptions">£0</span>
+        <span class="home-tile-stat-label">Per month</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -424,6 +438,9 @@
       </div>
       <div class="nav-item" data-app="social" onclick="goToApp('social')">
         <i class="ti ti-share" style="font-size:15px"></i> Social media
+      </div>
+      <div class="nav-item" data-app="subscriptions" onclick="goToApp('subscriptions')">
+        <i class="ti ti-credit-card" style="font-size:15px"></i> Subscriptions
       </div>
     </div>
 
@@ -573,6 +590,29 @@
     <div id="social-media-list"></div>
   </div>
 
+  <!-- MAIN: SUBSCRIPTIONS SECTION -->
+  <div class="main" id="section-subscriptions" style="display:none;">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Subscriptions</div>
+        <div class="page-sub">Everything you're paying for, in one place</div>
+      </div>
+      <button class="btn btn-gold" onclick="openSubscriptionModal(subState.tab)"><i class="ti ti-plus" style="font-size:14px"></i> New subscription</button>
+    </div>
+
+    <div class="metrics-strip" id="subscription-metrics-strip"></div>
+
+    <div class="filter-row" style="margin-bottom:0;">
+      <div class="view-toggle">
+        <button id="sub-tab-personal" class="active" onclick="setSubTab('personal')">Personal</button>
+        <button id="sub-tab-business" onclick="setSubTab('business')">Business</button>
+      </div>
+    </div>
+    <div style="margin-top:20px;">
+      <div id="subscriptions-list"></div>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -701,6 +741,10 @@ let boardState = {
 };
 let editingBoardItem = { type:null, id:null };
 
+let subscriptions = { personal: [], business: [] };
+let subState = { tab: 'personal' };
+let editingSubscription = { tab:null, id:null };
+
 let projects = [];
 let state = { view:'list', channelFilter:'all', stageFilter:'all', section:'dashboard' };
 let editingProjectId = null;
@@ -722,6 +766,10 @@ async function loadData(){
       boardData[type] = r ? JSON.parse(r.value) : BOARD_CONFIG[type].seed();
     }catch(e){ boardData[type] = BOARD_CONFIG[type].seed(); }
   }
+  try{
+    const r = await storage.get('subscriptions');
+    subscriptions = r ? JSON.parse(r.value) : { personal: [], business: [] };
+  }catch(e){ subscriptions = { personal: [], business: [] }; }
   renderAll();
   updateHomeStats();
 }
@@ -731,6 +779,10 @@ async function saveProjects(){
 }
 async function saveBoard(type){
   try{ await storage.set(BOARD_CONFIG[type].storeKey, JSON.stringify(boardData[type])); }catch(e){ console.error('save failed', e); }
+  updateHomeStats();
+}
+async function saveSubscriptions(){
+  try{ await storage.set('subscriptions', JSON.stringify(subscriptions)); }catch(e){ console.error('save failed', e); }
   updateHomeStats();
 }
 
@@ -789,6 +841,7 @@ function goToApp(app){
   document.getElementById('section-apps').style.display = 'none';
   document.getElementById('section-courses').style.display = 'none';
   document.getElementById('section-social').style.display = 'none';
+  document.getElementById('section-subscriptions').style.display = 'none';
 
   const brand = document.getElementById('shell-brand');
   if(app==='content'){
@@ -807,6 +860,10 @@ function goToApp(app){
     brand.innerHTML = 'Social media<span>Repurposed for socials</span>';
     document.getElementById('section-social').style.display = '';
     renderSocialMedia();
+  } else if(app==='subscriptions'){
+    brand.innerHTML = 'Subscriptions<span>What you pay for</span>';
+    document.getElementById('section-subscriptions').style.display = '';
+    renderSubscriptions();
   }
 }
 function updateHomeStats(){
@@ -815,14 +872,18 @@ function updateHomeStats(){
   const todo = (boardData.courses||[]).filter(c=>c.stage!=='Completed').length;
   const allVideos = projects.flatMap(p=>p.videos||[]);
   const notPosted = allVideos.filter(v=>!(v.social && (v.social.facebook?.posted || v.social.instagram?.posted || v.social.tiktok?.posted))).length;
+  const allSubs = [...(subscriptions.personal||[]), ...(subscriptions.business||[])];
+  const monthlyTotal = allSubs.reduce((sum,s)=> sum + monthlyEquivalent(s), 0);
   const elContent = document.getElementById('home-stat-content');
   const elApps = document.getElementById('home-stat-apps');
   const elCourses = document.getElementById('home-stat-courses');
   const elSocial = document.getElementById('home-stat-social');
+  const elSubs = document.getElementById('home-stat-subscriptions');
   if(elContent) elContent.textContent = inMotion;
   if(elApps) elApps.textContent = building;
   if(elCourses) elCourses.textContent = todo;
   if(elSocial) elSocial.textContent = notPosted;
+  if(elSubs) elSubs.textContent = '£' + monthlyTotal.toLocaleString(undefined,{maximumFractionDigits:2});
 }
 
 /* ---------------- NAV ---------------- */
@@ -1543,9 +1604,213 @@ function saveSocialVideo(){
   renderSocialMedia();
 }
 
+/* ---------------- SUBSCRIPTIONS ---------------- */
+function monthlyEquivalent(sub){
+  const cost = Number(sub.cost) || 0;
+  return sub.cycle === 'yearly' ? cost / 12 : cost;
+}
+function yearlyEquivalent(sub){
+  const cost = Number(sub.cost) || 0;
+  return sub.cycle === 'yearly' ? cost : cost * 12;
+}
+function domainFromInput(input){
+  if(!input) return '';
+  let v = input.trim().toLowerCase();
+  v = v.replace(/^https?:\/\//, '').replace(/^www\./, '');
+  v = v.split('/')[0];
+  return v;
+}
+function logoUrlForDomain(domain){
+  if(!domain) return '';
+  return `https://logo.clearbit.com/${domain}?size=80`;
+}
+function setSubTab(tab){
+  subState.tab = tab;
+  document.getElementById('sub-tab-personal').classList.toggle('active', tab==='personal');
+  document.getElementById('sub-tab-business').classList.toggle('active', tab==='business');
+  renderSubscriptions();
+}
+function renderSubscriptionMetrics(){
+  const personal = subscriptions.personal||[];
+  const business = subscriptions.business||[];
+  const all = [...personal, ...business];
+  const monthlyAll = all.reduce((s,x)=>s+monthlyEquivalent(x),0);
+  const yearlyAll = all.reduce((s,x)=>s+yearlyEquivalent(x),0);
+  const monthlyPersonal = personal.reduce((s,x)=>s+monthlyEquivalent(x),0);
+  const monthlyBusiness = business.reduce((s,x)=>s+monthlyEquivalent(x),0);
+
+  const fmt = n => '£' + n.toLocaleString(undefined,{maximumFractionDigits:2});
+  const el = document.getElementById('subscription-metrics-strip');
+  el.innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">Total per month</div>
+      <div class="metric-value">${fmt(monthlyAll)}</div>
+      <div class="metric-delta">Personal + Business</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total per year</div>
+      <div class="metric-value">${fmt(yearlyAll)}</div>
+      <div class="metric-delta">Personal + Business</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Personal — monthly</div>
+      <div class="metric-value">${fmt(monthlyPersonal)}</div>
+      <div class="metric-delta">${personal.length} subscription${personal.length===1?'':'s'}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Business — monthly</div>
+      <div class="metric-value">${fmt(monthlyBusiness)}</div>
+      <div class="metric-delta">${business.length} subscription${business.length===1?'':'s'}</div>
+    </div>
+  `;
+}
+function renderSubscriptions(){
+  renderSubscriptionMetrics();
+  const list = subscriptions[subState.tab] || [];
+  const el = document.getElementById('subscriptions-list');
+  if(list.length === 0){
+    el.innerHTML = `<div class="empty-state"><i class="ti ti-credit-card"></i><p>No ${subState.tab} subscriptions yet.</p><button class="btn btn-gold" onclick="openSubscriptionModal('${subState.tab}')"><i class="ti ti-plus" style="font-size:14px"></i> New subscription</button></div>`;
+    return;
+  }
+  const rows = list.map(sub=>{
+    const logo = sub.logoUrl ? `<img src="${escapeAttr(sub.logoUrl)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" style="width:32px; height:32px; border-radius:8px; object-fit:contain; background:white; padding:3px;">` : '';
+    const fallback = `<div style="width:32px; height:32px; border-radius:8px; background:var(--gold-soft); color:var(--gold); display:${sub.logoUrl?'none':'flex'}; align-items:center; justify-content:center; font-weight:600; font-size:13px;">${escapeHTML((sub.company||'?').charAt(0).toUpperCase())}</div>`;
+    return `
+      <tr class="list-row" onclick="openSubscriptionModal('${subState.tab}','${sub.id}')">
+        <td style="width:50px;">${logo}${fallback}</td>
+        <td>
+          <div class="proj-title">${escapeHTML(sub.company)}</div>
+          <div class="proj-channel">${escapeHTML(sub.service||'')}</div>
+        </td>
+        <td class="stat-cell"><b>£${(Number(sub.cost)||0).toLocaleString()}</b> / ${sub.cycle==='yearly'?'year':'month'}</td>
+        <td class="stat-cell">£${monthlyEquivalent(sub).toLocaleString(undefined,{maximumFractionDigits:2})} / mo</td>
+        <td class="stat-cell">£${yearlyEquivalent(sub).toLocaleString(undefined,{maximumFractionDigits:2})} / yr</td>
+        <td onclick="event.stopPropagation()">
+          <div class="row-actions">
+            <button class="icon-btn" onclick="openSubscriptionModal('${subState.tab}','${sub.id}')" aria-label="Edit"><i class="ti ti-edit"></i></button>
+            <button class="icon-btn" onclick="deleteSubscription('${subState.tab}','${sub.id}')" aria-label="Delete"><i class="ti ti-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  el.innerHTML = `
+    <table class="list-table">
+      <thead><tr><th></th><th>Company / service</th><th>Cost</th><th>Monthly equiv.</th><th>Yearly equiv.</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+function openSubscriptionModal(tab, id){
+  editingSubscription = { tab, id: id || null };
+  const list = subscriptions[tab] || [];
+  const sub = id ? list.find(s=>s.id===id) : { company:'', website:'', service:'', cost:'', cycle:'monthly', logoUrl:'' };
+
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <h2>${id ? 'Edit subscription' : 'New subscription'}</h2>
+        <div class="field-group">
+          <label class="field-label">Company name</label>
+          <input id="sub-company" value="${escapeAttr(sub.company||'')}" placeholder="e.g. Anthropic">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Website (used to fetch their logo automatically)</label>
+          <input id="sub-website" value="${escapeAttr(sub.website||'')}" placeholder="e.g. anthropic.com" oninput="previewSubLogo()">
+        </div>
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+          <img id="sub-logo-preview" src="${sub.logoUrl ? escapeAttr(sub.logoUrl) : ''}" style="width:44px; height:44px; border-radius:10px; object-fit:contain; background:white; padding:4px; display:${sub.logoUrl?'block':'none'};" onerror="this.style.display='none';">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('sub-logo-upload').click()">Upload logo manually</button>
+          <input type="file" id="sub-logo-upload" accept="image/*" style="display:none" onchange="handleLogoUpload(event)">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Service / plan</label>
+          <input id="sub-service" value="${escapeAttr(sub.service||'')}" placeholder="e.g. Claude Pro plan">
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label class="field-label">Cost (£)</label>
+            <input id="sub-cost" type="number" min="0" step="0.01" value="${sub.cost||''}">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Billing cycle</label>
+            <select id="sub-cycle">
+              <option value="monthly" ${sub.cycle!=='yearly'?'selected':''}>Monthly</option>
+              <option value="yearly" ${sub.cycle==='yearly'?'selected':''}>Yearly</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-gold" onclick="saveSubscription()">${id ? 'Save changes' : 'Add subscription'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function previewSubLogo(){
+  const website = document.getElementById('sub-website').value;
+  const domain = domainFromInput(website);
+  const img = document.getElementById('sub-logo-preview');
+  if(domain){
+    img.src = logoUrlForDomain(domain);
+    img.style.display = 'block';
+  } else {
+    img.style.display = 'none';
+  }
+}
+function handleLogoUpload(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    const img = document.getElementById('sub-logo-preview');
+    img.src = evt.target.result;
+    img.style.display = 'block';
+    img.dataset.uploaded = 'true';
+  };
+  reader.readAsDataURL(file);
+}
+function saveSubscription(){
+  const { tab, id } = editingSubscription;
+  const company = document.getElementById('sub-company').value.trim();
+  if(!company){ document.getElementById('sub-company').focus(); return; }
+  const website = document.getElementById('sub-website').value.trim();
+  const domain = domainFromInput(website);
+  const logoImg = document.getElementById('sub-logo-preview');
+  const logoUrl = logoImg && logoImg.style.display !== 'none' ? logoImg.src : (domain ? logoUrlForDomain(domain) : '');
+
+  const data = {
+    company,
+    website,
+    logoUrl,
+    service: document.getElementById('sub-service').value.trim(),
+    cost: Number(document.getElementById('sub-cost').value) || 0,
+    cycle: document.getElementById('sub-cycle').value,
+  };
+  if(!subscriptions[tab]) subscriptions[tab] = [];
+  if(id){
+    const idx = subscriptions[tab].findIndex(s=>s.id===id);
+    subscriptions[tab][idx] = { ...subscriptions[tab][idx], ...data };
+  } else {
+    subscriptions[tab].push({ id: uid(), ...data });
+  }
+  saveSubscriptions();
+  closeModal();
+  renderSubscriptions();
+}
+function deleteSubscription(tab, id){
+  event.stopPropagation();
+  if(!confirm('Delete this subscription?')) return;
+  subscriptions[tab] = (subscriptions[tab]||[]).filter(s=>s.id!==id);
+  saveSubscriptions();
+  renderSubscriptions();
+}
+
 /* ---------------- IMPORT / EXPORT ---------------- */
 function exportData(){
-  const blob = new Blob([JSON.stringify({projects, apps: boardData.apps, courses: boardData.courses}, null, 2)], {type:'application/json'});
+  const blob = new Blob([JSON.stringify({projects, apps: boardData.apps, courses: boardData.courses, subscriptions}, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = 'one-more-studio-data.json';
@@ -1562,6 +1827,7 @@ document.getElementById('import-file').addEventListener('change', function(e){
       if(data.projects){ projects = data.projects; saveProjects(); }
       if(data.apps){ boardData.apps = data.apps; saveBoard('apps'); }
       if(data.courses){ boardData.courses = data.courses; saveBoard('courses'); }
+      if(data.subscriptions){ subscriptions = data.subscriptions; saveSubscriptions(); }
       renderAll();
       updateHomeStats();
     }catch(err){ alert('Could not read that file.'); }
