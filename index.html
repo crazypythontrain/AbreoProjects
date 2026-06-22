@@ -1,0 +1,1742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>One More — Content Studio</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #15161B;
+    --surface: #1D1F26;
+    --surface-raised: #242631;
+    --border: rgba(255,255,255,0.08);
+    --border-strong: rgba(255,255,255,0.14);
+    --text: #ECEAE4;
+    --text-dim: #9C9A93;
+    --text-faint: #6B6962;
+
+    --departure: #D88A3F;
+    --departure-soft: rgba(216,138,63,0.14);
+    --narrative: #8E7CDB;
+    --narrative-soft: rgba(142,124,219,0.14);
+    --record: #3FAE9A;
+    --record-soft: rgba(63,174,154,0.14);
+    --dynasty: #C9485B;
+    --dynasty-soft: rgba(201,72,91,0.14);
+
+    --gold: #D4AF6A;
+    --success: #5FB88A;
+    --danger: #D4636B;
+  }
+
+  [data-theme="light"]{
+    --bg: #F5F2EC;
+    --surface: #FFFFFF;
+    --surface-raised: #FBF9F5;
+    --border: rgba(20,18,12,0.09);
+    --border-strong: rgba(20,18,12,0.16);
+    --text: #211F1A;
+    --text-dim: #6B675F;
+    --text-faint: #9A958A;
+
+    --departure: #B96E26;
+    --departure-soft: rgba(185,110,38,0.12);
+    --narrative: #6C5BC2;
+    --narrative-soft: rgba(108,91,194,0.12);
+    --record: #1F8A72;
+    --record-soft: rgba(31,138,114,0.12);
+    --dynasty: #B33A4C;
+    --dynasty-soft: rgba(179,58,76,0.12);
+
+    --gold: #A87A2E;
+    --success: #2E9A65;
+    --danger: #C24148;
+  }
+  body{ transition: background 0.2s, color 0.2s; }
+  .sidebar, .surface, .home-tile, .metric-card, .kanban-col, .kanban-card, .list-row, .modal, .search-input, input, select, textarea{
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  .app{ display:flex; min-height:100vh; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width: 240px;
+    flex-shrink:0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 28px 18px;
+    display:flex;
+    flex-direction:column;
+    gap: 28px;
+  }
+  .brand{
+    font-family:'Fraunces', serif;
+    font-size: 22px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height:1.15;
+  }
+  .brand span{ display:block; font-family:'Inter',sans-serif; font-size:11px; font-weight:500; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.08em; margin-top:4px; }
+
+  .nav-section{ display:flex; flex-direction:column; gap:2px; }
+  .nav-label{ font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--text-faint); margin: 0 0 8px 8px; font-weight:600; }
+  .nav-item{
+    display:flex; align-items:center; gap:10px;
+    padding: 9px 10px;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:13.5px;
+    color: var(--text-dim);
+    border:1px solid transparent;
+    transition: background 0.15s;
+  }
+  .nav-item:hover{ background: rgba(255,255,255,0.04); color:var(--text); }
+  .nav-item.active{ background: rgba(255,255,255,0.06); color:var(--text); border-color: var(--border-strong); }
+  .nav-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .nav-item .count{ margin-left:auto; font-size:11px; color:var(--text-faint); font-weight:500; }
+
+  .platform-icon{ width:16px; height:16px; flex-shrink:0; opacity:0.85; }
+
+  /* ---------- Main ---------- */
+  .main{ flex:1; padding: 28px 36px 60px; max-width: 1400px; }
+  .topbar{ display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; flex-wrap:wrap; gap:16px; }
+  .page-title{ font-family:'Fraunces', serif; font-size:28px; font-weight:600; }
+  .page-sub{ color:var(--text-dim); font-size:13.5px; margin-top:4px; }
+
+  .view-toggle{ display:flex; background:var(--surface); border:1px solid var(--border); border-radius:9px; padding:3px; gap:2px; }
+  .view-toggle button{
+    border:none; background:transparent; color:var(--text-dim);
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:500;
+    padding:7px 16px; border-radius:7px; cursor:pointer; transition: all 0.15s;
+  }
+  .view-toggle button.active{ background: var(--surface-raised); color:var(--text); }
+
+  .btn{
+    background: var(--surface-raised); color:var(--text); border:1px solid var(--border-strong);
+    font-family:'Inter',sans-serif; font-size:13px; font-weight:500;
+    padding:9px 16px; border-radius:8px; cursor:pointer; display:inline-flex; align-items:center; gap:7px;
+    transition: background 0.15s;
+  }
+  .btn:hover{ background: rgba(255,255,255,0.09); }
+  .btn-gold{ background: var(--gold); color:#1A1408; border:none; }
+  .btn-gold:hover{ background:#E0BD7C; }
+  .btn-ghost{ background:transparent; border:1px solid var(--border); color:var(--text-dim); }
+  .btn-sm{ padding:6px 11px; font-size:12px; }
+
+  /* ---------- Metrics strip ---------- */
+  .metrics-strip{ display:grid; grid-template-columns: repeat(4,1fr); gap:14px; margin-bottom:28px; }
+  .metric-card{
+    background: var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:16px 18px;
+  }
+  .metric-label{ font-size:11.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; font-weight:600; margin-bottom:8px; }
+  .metric-value{ font-family:'Fraunces', serif; font-size:26px; font-weight:600; line-height:1; }
+  .metric-delta{ font-size:12px; color:var(--text-dim); margin-top:6px; }
+
+  /* ---------- Filters ---------- */
+  .filter-row{ display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; align-items:center; }
+  .chip{
+    font-size:12.5px; padding:6px 13px; border-radius:20px; cursor:pointer;
+    border:1px solid var(--border-strong); color:var(--text-dim); background:transparent;
+    font-family:'Inter',sans-serif; font-weight:500; transition: all 0.15s;
+  }
+  .chip.active{ background: var(--surface-raised); color:var(--text); border-color:var(--border-strong); }
+  .search-input{
+    background: var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:8px 13px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px;
+    margin-left:auto; min-width:220px;
+  }
+  .search-input::placeholder{ color: var(--text-faint); }
+  .search-input:focus{ outline:none; border-color: var(--border-strong); }
+
+  /* ---------- List view ---------- */
+  .list-table{ width:100%; border-collapse:collapse; }
+  .list-table thead th{
+    text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;
+    color:var(--text-faint); font-weight:600; padding:0 14px 10px; border-bottom:1px solid var(--border);
+  }
+  .list-row{ cursor:pointer; transition: background 0.1s; }
+  .list-row:hover{ background: rgba(255,255,255,0.03); }
+  .list-row td{ padding:13px 14px; border-bottom:1px solid var(--border); font-size:13.5px; vertical-align:middle; }
+  .row-spine{ width:4px; padding:0 !important; }
+  .spine-bar{ width:4px; height:34px; border-radius:3px; }
+  .proj-title{ font-weight:500; }
+  .proj-channel{ font-size:11.5px; color:var(--text-dim); margin-top:2px; }
+  .badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:500;
+    padding:4px 10px; border-radius:6px; white-space:nowrap;
+  }
+  .type-tag{ font-size:11px; color:var(--text-dim); }
+  .stat-cell{ color:var(--text-dim); font-size:12.5px; }
+  .stat-cell b{ color:var(--text); font-weight:500; }
+  .row-actions{ display:flex; gap:6px; opacity:0; transition:opacity 0.15s; }
+  .list-row:hover .row-actions{ opacity:1; }
+  .icon-btn{
+    width:26px; height:26px; border-radius:6px; display:flex; align-items:center; justify-content:center;
+    background:transparent; border:1px solid var(--border); color:var(--text-dim); cursor:pointer; font-size:13px;
+  }
+  .icon-btn:hover{ background: rgba(255,255,255,0.06); color:var(--text); }
+
+  .expand-toggle{ flex-shrink:0; opacity:1 !important; }
+  .expand-spacer{ display:inline-block; width:26px; flex-shrink:0; }
+  .sub-row{ background: rgba(255,255,255,0.012); cursor:default; }
+  .sub-row:hover{ background: rgba(255,255,255,0.02); }
+  .sub-row td{ padding-top:9px; padding-bottom:9px; }
+  .sub-row-indent{ display:flex; align-items:center; gap:6px; padding-left:30px; }
+  .sub-row-title{ font-size:13px; color:var(--text-dim); }
+
+  /* ---------- Kanban ---------- */
+  .kanban{ display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:14px; align-items:start; }
+  .kanban-col{ background: rgba(255,255,255,0.015); border-radius:12px; padding:10px; min-height:120px; }
+  .kanban-col-head{ display:flex; justify-content:space-between; align-items:center; padding:4px 6px 12px; }
+  .kanban-col-title{ font-size:12px; font-weight:600; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; }
+  .kanban-col-count{ font-size:11px; color:var(--text-faint); background:rgba(255,255,255,0.05); padding:2px 7px; border-radius:10px; }
+  .kanban-cards{ display:flex; flex-direction:column; gap:8px; min-height:60px; }
+  .kanban-card{
+    background: var(--surface); border:1px solid var(--border); border-radius:10px;
+    padding:11px 12px; cursor:grab; position:relative; padding-left:14px;
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .kanban-card:hover{ border-color: var(--border-strong); }
+  .kanban-card.dragging{ opacity:0.4; }
+  .kanban-card::before{ content:''; position:absolute; left:0; top:0; bottom:0; width:4px; border-radius:6px 0 0 6px; }
+  .kanban-card-title{ font-size:13px; font-weight:500; line-height:1.35; margin-bottom:6px; }
+  .kanban-card-meta{ display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-faint); }
+  .kanban-col.drag-over{ background: rgba(255,255,255,0.04); }
+
+  /* ---------- Empty state ---------- */
+  .empty-state{ text-align:center; padding:60px 20px; color:var(--text-dim); }
+  .empty-state .ti{ font-size:32px; color:var(--text-faint); margin-bottom:12px; display:block; }
+  .empty-state p{ font-size:13.5px; margin-bottom:16px; }
+
+  /* ---------- Modal ---------- */
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center;
+    z-index:100; padding:24px;
+  }
+  .modal{
+    background: var(--surface-raised); border:1px solid var(--border-strong); border-radius:14px;
+    width:560px; max-width:100%; max-height:85vh; overflow-y:auto; padding:26px 28px;
+  }
+  .modal h2{ font-family:'Fraunces',serif; font-size:20px; font-weight:600; margin-bottom:18px; }
+  .field-group{ margin-bottom:16px; }
+  .field-label{ font-size:12px; color:var(--text-dim); margin-bottom:6px; display:block; font-weight:500; }
+  .field-row{ display:grid; grid-template-columns: 1fr 1fr; gap:12px; }
+  input, select, textarea{
+    width:100%; background: var(--surface); border:1px solid var(--border-strong); border-radius:8px;
+    padding:9px 12px; color:var(--text); font-family:'Inter',sans-serif; font-size:13.5px;
+  }
+  input:focus, select:focus, textarea:focus{ outline:none; border-color: var(--gold); }
+  textarea{ resize:vertical; min-height:60px; }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:10px; margin-top:22px; }
+  .modal-tabs{ display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:18px; }
+  .modal-tab{ padding:8px 4px; font-size:13px; color:var(--text-dim); cursor:pointer; border-bottom:2px solid transparent; margin-right:18px; }
+  .modal-tab.active{ color:var(--text); border-bottom-color: var(--gold); }
+  .video-row{
+    display:flex; gap:10px; align-items:center; background:var(--surface); border:1px solid var(--border);
+    border-radius:8px; padding:10px 12px; margin-bottom:8px;
+  }
+  .video-row input{ font-size:12.5px; padding:7px 9px; }
+  .video-title-input{ flex:2; }
+  .video-num-input{ flex:1; }
+  .remove-video{ flex-shrink:0; width:26px; }
+  .video-row-header{
+    background:transparent; border:none; padding:0 12px 4px; margin-bottom:4px;
+    font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.05em; font-weight:600;
+  }
+  .video-published-label{ flex-shrink:0; width:32px; text-align:center; }
+  .video-published-checkbox{ width:18px; height:18px; flex-shrink:0; accent-color: var(--gold); cursor:pointer; }
+
+  ::-webkit-scrollbar{ width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.1); border-radius:4px; }
+  ::-webkit-scrollbar-track{ background:transparent; }
+
+  @media (max-width: 900px){
+    .sidebar{ display:none; }
+    .kanban{ grid-template-columns: repeat(2, minmax(0,1fr)); }
+    .metrics-strip{ grid-template-columns: repeat(2,1fr); }
+    .field-row{ grid-template-columns: 1fr; }
+    .home-tiles{ grid-template-columns: 1fr; }
+  }
+
+  /* ---------- Home page ---------- */
+  .home-wrap{ max-width: 1180px; margin: 0 auto; padding: 70px 36px 60px; position:relative; }
+  .home-eyebrow{ font-size:12.5px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.1em; font-weight:600; margin-bottom:10px; }
+  .home-title{ font-family:'Fraunces', serif; font-size:36px; font-weight:600; margin-bottom:8px; letter-spacing:-0.01em; }
+  .home-sub{ color:var(--text-dim); font-size:14.5px; margin-bottom:44px; }
+  .home-tiles{ display:grid; grid-template-columns: repeat(4, 1fr); gap:18px; }
+  .home-tile{
+    background: var(--surface); border:1px solid var(--border); border-radius:16px;
+    padding:26px 24px; cursor:pointer; transition: border-color 0.15s, transform 0.12s;
+    display:flex; flex-direction:column; gap:14px; position:relative; overflow:hidden;
+  }
+  .home-tile:hover{ border-color: var(--border-strong); transform: translateY(-2px); }
+  .home-tile-icon{
+    width:42px; height:42px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:19px;
+  }
+  .home-tile-title{ font-family:'Fraunces', serif; font-size:18px; font-weight:600; }
+  .home-tile-desc{ font-size:12.5px; color:var(--text-dim); line-height:1.5; }
+  .home-tile-stat{ margin-top:auto; padding-top:14px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:baseline; }
+  .home-tile-stat-num{ font-family:'Fraunces', serif; font-size:22px; font-weight:600; }
+  .home-tile-stat-label{ font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.05em; }
+  .home-tile.placeholder{ cursor:default; opacity:0.5; border-style:dashed; }
+  .home-tile.placeholder:hover{ transform:none; border-color:var(--border); }
+
+  .back-nav{
+    display:inline-flex; align-items:center; gap:6px; color:var(--text-dim); font-size:12.5px;
+    cursor:pointer; margin-bottom:18px; font-weight:500;
+  }
+  .back-nav:hover{ color:var(--text); }
+
+  .theme-toggle{
+    display:flex; align-items:center; gap:8px; cursor:pointer; padding:9px 10px; border-radius:8px;
+    color:var(--text-dim); font-size:13.5px; transition: background 0.15s;
+  }
+  .theme-toggle:hover{ background: rgba(127,127,127,0.08); color:var(--text); }
+  .theme-toggle-track{
+    width:34px; height:19px; border-radius:10px; background: var(--border-strong); position:relative; flex-shrink:0;
+    transition: background 0.2s;
+  }
+  .theme-toggle-thumb{
+    width:15px; height:15px; border-radius:50%; background: var(--gold); position:absolute; top:2px; left:2px;
+    transition: transform 0.2s; display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--bg);
+  }
+  [data-theme="light"] .theme-toggle-thumb{ transform: translateX(15px); }
+
+  .home-theme-toggle{
+    position:absolute; top:28px; right:36px; display:flex; align-items:center; gap:8px;
+    cursor:pointer; color:var(--text-dim); font-size:12.5px; padding:7px 12px; border-radius:20px;
+    border:1px solid var(--border); background:var(--surface);
+  }
+  .home-theme-toggle:hover{ border-color:var(--border-strong); color:var(--text); }
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="login-page" style="min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px;">
+  <div style="width:340px; max-width:100%;">
+    <div style="font-family:'Fraunces',serif; font-size:24px; font-weight:600; margin-bottom:6px; text-align:center;">One More</div>
+    <div style="color:var(--text-dim); font-size:13px; text-align:center; margin-bottom:28px;">Sign in to your studio</div>
+    <div class="field-group">
+      <label class="field-label">Email</label>
+      <input id="login-email" type="email" placeholder="you@example.com" autocomplete="email">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Password</label>
+      <input id="login-password" type="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div id="login-error" style="color:var(--danger); font-size:12.5px; margin-bottom:12px; display:none;"></div>
+    <button class="btn btn-gold" style="width:100%; justify-content:center;" onclick="handleLogin()">Sign in</button>
+  </div>
+</div>
+
+<!-- HOME PAGE -->
+<div id="home-page" class="home-wrap" style="display:none;">
+  <div class="home-theme-toggle" onclick="toggleTheme()">
+    <i class="ti ti-sun" id="home-theme-icon" style="font-size:14px"></i>
+    <span id="home-theme-label">Day</span>
+  </div>
+  <div class="home-eyebrow">Your command centre</div>
+  <div class="home-title">Where to today?</div>
+  <div class="home-sub">Everything you're building, in one place.</div>
+  <div class="home-tiles">
+    <div class="home-tile" onclick="goToApp('content')">
+      <div class="home-tile-icon" style="background:var(--departure-soft); color:var(--departure);"><i class="ti ti-movie"></i></div>
+      <div>
+        <div class="home-tile-title">YouTube Channels</div>
+        <div class="home-tile-desc">Scripts, videos, and metrics across your four channels.</div>
+      </div>
+      <div class="home-tile-stat">
+        <span class="home-tile-stat-num" id="home-stat-content">0</span>
+        <span class="home-tile-stat-label">In motion</span>
+      </div>
+    </div>
+
+    <div class="home-tile" onclick="goToApp('apps')">
+      <div class="home-tile-icon" style="background:var(--narrative-soft); color:var(--narrative);"><i class="ti ti-apps"></i></div>
+      <div>
+        <div class="home-tile-title">App builds</div>
+        <div class="home-tile-desc">Apps you're building with Claude, from idea to App Store.</div>
+      </div>
+      <div class="home-tile-stat">
+        <span class="home-tile-stat-num" id="home-stat-apps">0</span>
+        <span class="home-tile-stat-label">Building</span>
+      </div>
+    </div>
+
+    <div class="home-tile" onclick="goToApp('courses')">
+      <div class="home-tile-icon" style="background:var(--record-soft); color:var(--record);"><i class="ti ti-school"></i></div>
+      <div>
+        <div class="home-tile-title">Courses</div>
+        <div class="home-tile-desc">Things to learn — started, in progress, and finished.</div>
+      </div>
+      <div class="home-tile-stat">
+        <span class="home-tile-stat-num" id="home-stat-courses">0</span>
+        <span class="home-tile-stat-label">To do</span>
+      </div>
+    </div>
+
+    <div class="home-tile" onclick="goToApp('social')">
+      <div class="home-tile-icon" style="background:var(--dynasty-soft); color:var(--dynasty);"><i class="ti ti-share"></i></div>
+      <div>
+        <div class="home-tile-title">Social media</div>
+        <div class="home-tile-desc">Your videos, repurposed for Facebook, Instagram and TikTok.</div>
+      </div>
+      <div class="home-tile-stat">
+        <span class="home-tile-stat-num" id="home-stat-social">0</span>
+        <span class="home-tile-stat-label">Not yet posted</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL (content studio, app builds, courses) -->
+<div id="app-shell" style="display:none;">
+<div class="app">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="back-nav" onclick="goHome()"><i class="ti ti-arrow-left" style="font-size:13px"></i> Home</div>
+    <div class="brand" id="shell-brand">One More<span>YouTube Channels</span></div>
+
+    <div class="nav-section">
+      <div class="nav-label">Switch to</div>
+      <div class="nav-item" data-app="content" onclick="goToApp('content')">
+        <i class="ti ti-movie" style="font-size:15px"></i> YouTube Channels
+      </div>
+      <div class="nav-item" data-app="apps" onclick="goToApp('apps')">
+        <i class="ti ti-apps" style="font-size:15px"></i> App builds
+      </div>
+      <div class="nav-item" data-app="courses" onclick="goToApp('courses')">
+        <i class="ti ti-school" style="font-size:15px"></i> Courses
+      </div>
+      <div class="nav-item" data-app="social" onclick="goToApp('social')">
+        <i class="ti ti-share" style="font-size:15px"></i> Social media
+      </div>
+    </div>
+
+    <!-- CONTENT STUDIO NAV -->
+    <div id="nav-content-extra" style="display:none; flex-direction:column; gap:28px;">
+      <div class="nav-section">
+        <div class="nav-label">Overview</div>
+        <div class="nav-item active" data-view="dashboard" onclick="setSection('dashboard')">
+          <i class="ti ti-layout-dashboard" style="font-size:15px"></i> Dashboard
+        </div>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-label">Channels</div>
+        <div class="nav-item" data-channel="all" onclick="filterChannel('all')">
+          <span class="nav-dot" style="background:var(--text-faint)"></span> All projects
+          <span class="count" id="count-all">0</span>
+        </div>
+        <div class="nav-item" data-channel="departure" onclick="filterChannel('departure')">
+          <span class="nav-dot" style="background:var(--departure)"></span> One More Departure
+          <span class="count" id="count-departure">0</span>
+        </div>
+        <div class="nav-item" data-channel="narrative" onclick="filterChannel('narrative')">
+          <span class="nav-dot" style="background:var(--narrative)"></span> One More Narrative
+          <span class="count" id="count-narrative">0</span>
+        </div>
+        <div class="nav-item" data-channel="record" onclick="filterChannel('record')">
+          <span class="nav-dot" style="background:var(--record)"></span> One More Record
+          <span class="count" id="count-record">0</span>
+        </div>
+        <div class="nav-item" data-channel="dynasty" onclick="filterChannel('dynasty')">
+          <span class="nav-dot" style="background:var(--dynasty)"></span> One More Dynasty
+          <span class="count" id="count-dynasty">0</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="nav-section" style="margin-top:auto;">
+      <div class="theme-toggle" onclick="toggleTheme()">
+        <div class="theme-toggle-track"><div class="theme-toggle-thumb"><i class="ti ti-sun" id="sidebar-theme-icon" style="font-size:9px"></i></div></div>
+        <span id="sidebar-theme-label">Day mode</span>
+      </div>
+      <div class="nav-item" onclick="exportData()">
+        <i class="ti ti-download" style="font-size:15px"></i> Export data
+      </div>
+      <div class="nav-item" onclick="document.getElementById('import-file').click()">
+        <i class="ti ti-upload" style="font-size:15px"></i> Import data
+      </div>
+      <input type="file" id="import-file" accept=".json" style="display:none">
+      <div class="nav-item" onclick="handleLogout()">
+        <i class="ti ti-logout" style="font-size:15px"></i> Sign out
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN: DASHBOARD SECTION (YouTube Channels) -->
+  <div class="main" id="section-dashboard">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="page-title">All projects</div>
+        <div class="page-sub" id="page-sub">Every story in motion, across all four channels</div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <div class="view-toggle">
+          <button id="btn-list" class="active" onclick="setView('list')">List</button>
+          <button id="btn-kanban" onclick="setView('kanban')">Kanban</button>
+        </div>
+        <button class="btn btn-ghost" onclick="document.getElementById('excel-import-file').click()"><i class="ti ti-file-spreadsheet" style="font-size:14px"></i> Import from Excel</button>
+        <input type="file" id="excel-import-file" accept=".xlsx,.xls" style="display:none">
+        <button class="btn btn-gold" onclick="openProjectModal()"><i class="ti ti-plus" style="font-size:14px"></i> New project</button>
+      </div>
+    </div>
+
+
+    <div class="metrics-strip" id="metrics-strip"></div>
+
+    <div class="filter-row">
+      <span class="chip active" data-stage="all" onclick="filterStage('all', this)">All stages</span>
+      <span class="chip" data-stage="Idea" onclick="filterStage('Idea', this)">Idea</span>
+      <span class="chip" data-stage="Scripting" onclick="filterStage('Scripting', this)">Scripting</span>
+      <span class="chip" data-stage="Image creation" onclick="filterStage('Image creation', this)">Image creation</span>
+      <span class="chip" data-stage="Narration audio" onclick="filterStage('Narration audio', this)">Narration audio</span>
+      <span class="chip" data-stage="Editing" onclick="filterStage('Editing', this)">Editing</span>
+      <span class="chip" data-stage="Published" onclick="filterStage('Published', this)">Published</span>
+      <input class="search-input" id="search-input" placeholder="Search projects..." oninput="renderAll()">
+    </div>
+
+    <div id="list-view"></div>
+    <div id="kanban-view" style="display:none;"></div>
+  </div>
+
+  <!-- MAIN: APP BUILDS SECTION -->
+  <div class="main" id="section-apps" style="display:none;">
+    <div class="topbar">
+      <div>
+        <div class="page-title">App builds</div>
+        <div class="page-sub">Everything you're building with Claude</div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <div class="view-toggle">
+          <button id="btn-list-apps" class="active" onclick="setBoardView('apps','list')">List</button>
+          <button id="btn-kanban-apps" onclick="setBoardView('apps','kanban')">Kanban</button>
+        </div>
+        <button class="btn btn-gold" onclick="openBoardItemModal('apps')"><i class="ti ti-plus" style="font-size:14px"></i> New app</button>
+      </div>
+    </div>
+    <div id="list-view-apps"></div>
+    <div id="kanban-view-apps" style="display:none;"></div>
+  </div>
+
+  <!-- MAIN: COURSES SECTION -->
+  <div class="main" id="section-courses" style="display:none;">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Courses</div>
+        <div class="page-sub">Things to learn, in progress, and done</div>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <div class="view-toggle">
+          <button id="btn-list-courses" class="active" onclick="setBoardView('courses','list')">List</button>
+          <button id="btn-kanban-courses" onclick="setBoardView('courses','kanban')">Kanban</button>
+        </div>
+        <button class="btn btn-gold" onclick="openBoardItemModal('courses')"><i class="ti ti-plus" style="font-size:14px"></i> New course</button>
+      </div>
+    </div>
+    <div id="list-view-courses"></div>
+    <div id="kanban-view-courses" style="display:none;"></div>
+  </div>
+
+  <!-- MAIN: SOCIAL MEDIA SECTION -->
+  <div class="main" id="section-social" style="display:none;">
+    <div class="topbar">
+      <div>
+        <div class="page-title">Social media</div>
+        <div class="page-sub">Every video from your channels, ready to repurpose</div>
+      </div>
+    </div>
+    <div class="metrics-strip" id="social-metrics-strip"></div>
+    <div class="filter-row">
+      <span class="chip active" data-platform="all" onclick="filterSocialPlatform('all', this)">All platforms</span>
+      <span class="chip" data-platform="facebook" onclick="filterSocialPlatform('facebook', this)">Facebook</span>
+      <span class="chip" data-platform="instagram" onclick="filterSocialPlatform('instagram', this)">Instagram</span>
+      <span class="chip" data-platform="tiktok" onclick="filterSocialPlatform('tiktok', this)">TikTok</span>
+      <span class="chip" data-platform="unposted" onclick="filterSocialPlatform('unposted', this)">Not yet posted anywhere</span>
+      <input class="search-input" id="social-search-input" placeholder="Search videos..." oninput="renderSocialMedia()">
+    </div>
+    <div id="social-media-list"></div>
+  </div>
+
+</div>
+</div>
+
+<div id="modal-root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+<script>
+/* ---------------- SUPABASE CONFIG ---------------- */
+/* Paste your own project values here -- see SETUP.md */
+const SUPABASE_URL = 'https://yxuabdonbampvmjxrsea.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl4dWFiZG9uYmFtcHZtanhyc2VhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIwNzcyNTcsImV4cCI6MjA5NzY1MzI1N30.OM3XyeGx4eaFPxC-V1MxUwmJW4t3zegSv8WiCmel0XE';
+
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
+
+/* ---------------- AUTH ---------------- */
+function showLoginError(msg){
+  const el = document.getElementById('login-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+async function handleLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if(!email || !password){ showLoginError('Enter your email and password.'); return; }
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ showLoginError(error.message); return; }
+  currentUser = data.user;
+  enterApp();
+}
+async function handleLogout(){
+  await sb.auth.signOut();
+  currentUser = null;
+  document.getElementById('login-page').style.display = 'flex';
+  document.getElementById('home-page').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'none';
+}
+async function enterApp(){
+  document.getElementById('login-page').style.display = 'none';
+  document.getElementById('home-page').style.display = '';
+  await loadTheme();
+  await loadData();
+}
+async function checkSession(){
+  const { data } = await sb.auth.getSession();
+  if(data.session){
+    currentUser = data.session.user;
+    await enterApp();
+  } else {
+    document.getElementById('login-page').style.display = 'flex';
+  }
+}
+
+/* ---------------- STORAGE SHIM (mirrors the old window.storage API) ---------------- */
+const storage = {
+  async get(key){
+    if(!currentUser) return null;
+    const { data, error } = await sb.from('app_data').select('payload').eq('id', currentUser.id + ':' + key).maybeSingle();
+    if(error || !data) return null;
+    const raw = data.payload;
+    const value = (raw && typeof raw === 'object' && '_v' in raw) ? raw._v : JSON.stringify(raw);
+    return { value };
+  },
+  async set(key, value){
+    if(!currentUser) return null;
+    let payload;
+    try{ payload = JSON.parse(value); if(typeof payload !== 'object' || payload===null) payload = { _v: value }; }
+    catch(e){ payload = { _v: value }; }
+    const { error } = await sb.from('app_data').upsert({
+      id: currentUser.id + ':' + key,
+      user_id: currentUser.id,
+      data_type: key,
+      payload,
+      updated_at: new Date().toISOString()
+    });
+    if(error){ console.error('storage.set failed', error); return null; }
+    return { value };
+  }
+};
+
+/* ---------------- DATA ---------------- */
+const CHANNELS = {
+  departure: { name:"One More Departure", color:"var(--departure)", soft:"var(--departure-soft)", desc:"Travel stories" },
+  narrative: { name:"One More Narrative", color:"var(--narrative)", soft:"var(--narrative-soft)", desc:"AI-made fiction" },
+  record:    { name:"One More Record",    color:"var(--record)",    soft:"var(--record-soft)",    desc:"True historical figures" },
+  dynasty:   { name:"One More Dynasty",   color:"var(--dynasty)",   soft:"var(--dynasty-soft)",   desc:"Kings, queens, emperors" },
+};
+const STAGES = ["Idea","Scripting","Image creation","Narration audio","Editing","Published"];
+const PLATFORMS = { facebook:"Facebook", instagram:"Instagram", tiktok:"TikTok" };
+
+const BOARD_CONFIG = {
+  apps: {
+    storeKey: 'app_builds',
+    stages: ["Idea","Building","Testing","Published on App Store"],
+    color: "var(--narrative)",
+    soft: "var(--narrative-soft)",
+    noun: "app",
+    fields: [
+      { key:'title', label:'App name', type:'text', required:true, placeholder:'e.g. Habit tracker' },
+      { key:'stage', label:'Stage', type:'stage' },
+      { key:'platform', label:'Platform', type:'select', options:['iOS','Android','Web','Cross-platform'] },
+      { key:'notes', label:'Notes', type:'textarea', placeholder:'What it does, tech stack, todo...' },
+    ],
+    seed: ()=>[]
+  },
+  courses: {
+    storeKey: 'courses',
+    stages: ["Not started","In progress","Completed"],
+    color: "var(--record)",
+    soft: "var(--record-soft)",
+    noun: "course",
+    fields: [
+      { key:'title', label:'Course title', type:'text', required:true, placeholder:'e.g. Advanced Premiere Pro' },
+      { key:'stage', label:'Stage', type:'stage' },
+      { key:'provider', label:'Provider / link', type:'text', placeholder:'e.g. Udemy, Skillshare...' },
+      { key:'notes', label:'Notes', type:'textarea', placeholder:'Why this course, what to focus on...' },
+    ],
+    seed: ()=>[]
+  }
+};
+let boardData = { apps: [], courses: [] };
+let boardState = {
+  apps: { view:'list', stageFilter:'all' },
+  courses: { view:'list', stageFilter:'all' }
+};
+let editingBoardItem = { type:null, id:null };
+
+let projects = [];
+let state = { view:'list', channelFilter:'all', stageFilter:'all', section:'dashboard' };
+let editingProjectId = null;
+let currentApp = 'content';
+let expandedProjects = new Set();
+let socialState = { platformFilter: 'all' };
+
+function uid(){ return 'id_' + Math.random().toString(36).slice(2,10); }
+
+/* ---------------- STORAGE ---------------- */
+async function loadData(){
+  try{
+    const p = await storage.get('projects');
+    projects = p ? JSON.parse(p.value) : seedProjects();
+  }catch(e){ projects = seedProjects(); }
+  for(const type of ['apps','courses']){
+    try{
+      const r = await storage.get(BOARD_CONFIG[type].storeKey);
+      boardData[type] = r ? JSON.parse(r.value) : BOARD_CONFIG[type].seed();
+    }catch(e){ boardData[type] = BOARD_CONFIG[type].seed(); }
+  }
+  renderAll();
+  updateHomeStats();
+}
+async function saveProjects(){
+  try{ await storage.set('projects', JSON.stringify(projects)); }catch(e){ console.error('save failed', e); }
+  updateHomeStats();
+}
+async function saveBoard(type){
+  try{ await storage.set(BOARD_CONFIG[type].storeKey, JSON.stringify(boardData[type])); }catch(e){ console.error('save failed', e); }
+  updateHomeStats();
+}
+
+function seedProjects(){
+  return [];
+}
+
+/* ---------------- THEME ---------------- */
+let currentTheme = 'dark';
+function applyTheme(theme){
+  currentTheme = theme;
+  if(theme==='light'){
+    document.documentElement.setAttribute('data-theme','light');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  const isLight = theme==='light';
+  const icon = isLight ? 'ti-moon' : 'ti-sun';
+  const label = isLight ? 'Night' : 'Day';
+  const sidebarIcon = document.getElementById('sidebar-theme-icon');
+  const sidebarLabel = document.getElementById('sidebar-theme-label');
+  const homeIcon = document.getElementById('home-theme-icon');
+  const homeLabel = document.getElementById('home-theme-label');
+  if(sidebarIcon) sidebarIcon.className = `ti ${icon}`;
+  if(sidebarLabel) sidebarLabel.textContent = label + ' mode';
+  if(homeIcon) homeIcon.className = `ti ${icon}`;
+  if(homeLabel) homeLabel.textContent = label;
+}
+function toggleTheme(){
+  const next = currentTheme==='dark' ? 'light' : 'dark';
+  applyTheme(next);
+  try{ storage.set('theme_preference', next, false); }catch(e){}
+}
+async function loadTheme(){
+  try{
+    const r = await storage.get('theme_preference');
+    applyTheme(r && r.value ? r.value : 'dark');
+  }catch(e){ applyTheme('dark'); }
+}
+
+/* ---------------- HOME / APP NAV ---------------- */
+function goHome(){
+  document.getElementById('home-page').style.display = '';
+  document.getElementById('app-shell').style.display = 'none';
+  updateHomeStats();
+}
+function goToApp(app){
+  currentApp = app;
+  document.getElementById('home-page').style.display = 'none';
+  document.getElementById('app-shell').style.display = '';
+
+  document.querySelectorAll('.nav-item[data-app]').forEach(el=>el.classList.toggle('active', el.dataset.app===app));
+  document.getElementById('nav-content-extra').style.display = app==='content' ? 'flex' : 'none';
+
+  document.getElementById('section-dashboard').style.display = 'none';
+  document.getElementById('section-apps').style.display = 'none';
+  document.getElementById('section-courses').style.display = 'none';
+  document.getElementById('section-social').style.display = 'none';
+
+  const brand = document.getElementById('shell-brand');
+  if(app==='content'){
+    brand.innerHTML = 'One More<span>YouTube Channels</span>';
+    document.getElementById('section-dashboard').style.display = '';
+    renderAll();
+  } else if(app==='apps'){
+    brand.innerHTML = 'App builds<span>Built with Claude</span>';
+    document.getElementById('section-apps').style.display = '';
+    renderBoard('apps');
+  } else if(app==='courses'){
+    brand.innerHTML = 'Courses<span>Learning, tracked</span>';
+    document.getElementById('section-courses').style.display = '';
+    renderBoard('courses');
+  } else if(app==='social'){
+    brand.innerHTML = 'Social media<span>Repurposed for socials</span>';
+    document.getElementById('section-social').style.display = '';
+    renderSocialMedia();
+  }
+}
+function updateHomeStats(){
+  const inMotion = projects.filter(p=>p.stage!=='Published').length;
+  const building = (boardData.apps||[]).filter(a=>a.stage!=='Published on App Store').length;
+  const todo = (boardData.courses||[]).filter(c=>c.stage!=='Completed').length;
+  const allVideos = projects.flatMap(p=>p.videos||[]);
+  const notPosted = allVideos.filter(v=>!(v.social && (v.social.facebook?.posted || v.social.instagram?.posted || v.social.tiktok?.posted))).length;
+  const elContent = document.getElementById('home-stat-content');
+  const elApps = document.getElementById('home-stat-apps');
+  const elCourses = document.getElementById('home-stat-courses');
+  const elSocial = document.getElementById('home-stat-social');
+  if(elContent) elContent.textContent = inMotion;
+  if(elApps) elApps.textContent = building;
+  if(elCourses) elCourses.textContent = todo;
+  if(elSocial) elSocial.textContent = notPosted;
+}
+
+/* ---------------- NAV ---------------- */
+function setSection(sec){
+  state.section = sec;
+  document.getElementById('section-dashboard').style.display = sec==='dashboard' ? '' : 'none';
+  document.querySelectorAll('.nav-item[data-view]').forEach(el=>el.classList.toggle('active', el.dataset.view===sec));
+}
+function setView(v){
+  state.view = v;
+  document.getElementById('btn-list').classList.toggle('active', v==='list');
+  document.getElementById('btn-kanban').classList.toggle('active', v==='kanban');
+  document.getElementById('list-view').style.display = v==='list' ? '' : 'none';
+  document.getElementById('kanban-view').style.display = v==='kanban' ? '' : 'none';
+  renderAll();
+}
+function filterChannel(c){
+  state.channelFilter = c;
+  document.querySelectorAll('.nav-item[data-channel]').forEach(el=>el.classList.toggle('active', el.dataset.channel===c));
+  const title = c==='all' ? 'All projects' : CHANNELS[c].name;
+  const sub = c==='all' ? 'Every story in motion, across all four channels' : CHANNELS[c].desc;
+  document.getElementById('page-title').textContent = title;
+  document.getElementById('page-sub').textContent = sub;
+  renderAll();
+}
+function filterStage(s, el){
+  state.stageFilter = s;
+  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderAll();
+}
+
+function getFiltered(){
+  const q = (document.getElementById('search-input')?.value || '').toLowerCase();
+  return projects.filter(p=>{
+    if(state.channelFilter!=='all' && p.channel!==state.channelFilter) return false;
+    if(state.stageFilter!=='all' && p.stage!==state.stageFilter) return false;
+    if(q && !p.title.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+/* ---------------- RENDER: METRICS ---------------- */
+function renderMetrics(){
+  const list = state.channelFilter==='all' ? projects : projects.filter(p=>p.channel===state.channelFilter);
+  const totalSubs = list.reduce((a,p)=>a+(p.subscribers||0),0);
+  const totalViews = list.reduce((a,p)=> a + (p.channelViews||0), 0);
+  const totalRevenue = list.reduce((a,p)=>{
+    const vidRev = (p.videos||[]).reduce((s,v)=>s+(v.revenue||0),0);
+    return a + (p.revenue||0) + vidRev;
+  },0);
+  const published = list.filter(p=>p.stage==='Published').length;
+
+  const el = document.getElementById('metrics-strip');
+  el.innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">Subscribers</div>
+      <div class="metric-value">${totalSubs.toLocaleString()}</div>
+      <div class="metric-delta">Across ${state.channelFilter==='all' ? '4 channels' : '1 channel'}</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Total views</div>
+      <div class="metric-value">${totalViews.toLocaleString()}</div>
+      <div class="metric-delta">Channel + video totals</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Revenue</div>
+      <div class="metric-value">£${totalRevenue.toLocaleString()}</div>
+      <div class="metric-delta">Manual entries</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Published</div>
+      <div class="metric-value">${published} <span style="font-size:14px; color:var(--text-faint); font-weight:400;">/ ${list.length}</span></div>
+      <div class="metric-delta">Projects live</div>
+    </div>
+  `;
+}
+
+function renderSidebarCounts(){
+  document.getElementById('count-all').textContent = projects.length;
+  Object.keys(CHANNELS).forEach(c=>{
+    document.getElementById('count-'+c).textContent = projects.filter(p=>p.channel===c).length;
+  });
+}
+
+/* ---------------- RENDER: LIST ---------------- */
+function renderList(){
+  const data = getFiltered();
+  const el = document.getElementById('list-view');
+  if(data.length===0){
+    el.innerHTML = emptyStateHTML();
+    return;
+  }
+  let rows = data.map(p=>{
+    const ch = CHANNELS[p.channel];
+    const videos = p.videos||[];
+    const videoCount = videos.length;
+    const videoViews = videos.reduce((s,v)=>s+(v.views||0),0);
+    const publishedCount = videos.filter(v=>v.published).length;
+    const isExpanded = expandedProjects.has(p.id);
+
+    const chevron = videoCount > 0
+      ? `<button class="icon-btn expand-toggle" onclick="event.stopPropagation(); toggleExpand('${p.id}')" aria-label="Toggle videos"><i class="ti ti-chevron-${isExpanded?'down':'right'}"></i></button>`
+      : `<span class="expand-spacer"></span>`;
+
+    const subRows = (isExpanded && videoCount > 0) ? videos.map(v=>`
+      <tr class="list-row sub-row">
+        <td class="row-spine"></td>
+        <td>
+          <div class="sub-row-indent">
+            <i class="ti ti-corner-down-right" style="font-size:13px; color:var(--text-faint);"></i>
+            <span class="sub-row-title">${escapeHTML(v.title)}</span>
+          </div>
+        </td>
+        <td><span class="badge" style="background:${v.published ? 'var(--record-soft)' : 'rgba(127,127,127,0.12)'}; color:${v.published ? 'var(--record)' : 'var(--text-faint)'};">${v.published ? 'Published' : 'Not published'}</span></td>
+        <td class="stat-cell">—</td>
+        <td class="stat-cell">—</td>
+        <td class="stat-cell"><b>${(v.views||0).toLocaleString()}</b> views <span style="color:var(--text-faint)">· ${(v.likes||0).toLocaleString()} likes</span></td>
+        <td class="stat-cell"><b>£${(v.revenue||0).toLocaleString()}</b></td>
+        <td></td>
+      </tr>
+    `).join('') : '';
+
+    return `
+      <tr class="list-row" onclick="openProjectModal('${p.id}')">
+        <td class="row-spine"><div class="spine-bar" style="background:${ch.color}"></div></td>
+        <td>
+          <div style="display:flex; align-items:center; gap:6px;">
+            ${chevron}
+            <div>
+              <div class="proj-title">${escapeHTML(p.title)}</div>
+              <div class="proj-channel">${ch.name}</div>
+            </div>
+          </div>
+        </td>
+        <td><span class="badge" style="background:${ch.soft}; color:${ch.color}">${p.stage}</span></td>
+        <td class="stat-cell"><b>${(p.subscribers||0).toLocaleString()}</b></td>
+        <td class="stat-cell"><b>${(p.channelViews||0).toLocaleString()}</b></td>
+        <td class="stat-cell">${videoCount ? `${publishedCount}/${videoCount} published` : 'No videos'} <span style="color:var(--text-faint)">${videoCount ? `· ${videoViews.toLocaleString()} views` : ''}</span></td>
+        <td class="stat-cell"><b>£${((p.revenue||0) + videos.reduce((s,v)=>s+(v.revenue||0),0)).toLocaleString()}</b></td>
+        <td onclick="event.stopPropagation()">
+          <div class="row-actions">
+            <button class="icon-btn" onclick="openProjectModal('${p.id}')" aria-label="Edit"><i class="ti ti-edit"></i></button>
+            <button class="icon-btn" onclick="deleteProject('${p.id}')" aria-label="Delete"><i class="ti ti-trash"></i></button>
+          </div>
+        </td>
+      </tr>
+      ${subRows}
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <table class="list-table">
+      <thead><tr>
+        <th></th><th>Project</th><th>Stage</th><th>Subscribers</th><th>Channel views</th><th>Videos</th><th>Revenue</th><th></th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+function toggleExpand(id){
+  if(expandedProjects.has(id)) expandedProjects.delete(id);
+  else expandedProjects.add(id);
+  renderList();
+}
+
+function emptyStateHTML(){
+  return `<div class="empty-state">
+    <i class="ti ti-bulb"></i>
+    <p>No projects match these filters yet.</p>
+    <button class="btn btn-gold" onclick="openProjectModal()"><i class="ti ti-plus" style="font-size:14px"></i> New project</button>
+  </div>`;
+}
+
+/* ---------------- RENDER: KANBAN ---------------- */
+function renderKanban(){
+  const data = getFiltered();
+  const el = document.getElementById('kanban-view');
+  const cols = STAGES.map(stage=>{
+    const items = data.filter(p=>p.stage===stage);
+    const cards = items.map(p=>{
+      const ch = CHANNELS[p.channel];
+      return `
+        <div class="kanban-card" draggable="true" data-id="${p.id}" style="--spine:${ch.color}" onclick="openProjectModal('${p.id}')">
+          <div class="kanban-card-title">${escapeHTML(p.title)}</div>
+          <div class="kanban-card-meta">
+            <span style="color:${ch.color}">${ch.name.replace('One More ','')}</span>
+            <span>${(p.subscribers||0).toLocaleString()} subs</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+    return `
+      <div class="kanban-col">
+        <div class="kanban-col-head">
+          <span class="kanban-col-title">${stage}</span>
+          <span class="kanban-col-count">${items.length}</span>
+        </div>
+        <div class="kanban-cards" data-stage="${stage}">${cards}</div>
+      </div>
+    `;
+  }).join('');
+  el.innerHTML = `<div class="kanban">${cols}</div>`;
+
+  // colored spine via pseudo-element can't read inline var easily; set border-left directly
+  el.querySelectorAll('.kanban-card').forEach(card=>{
+    const color = card.style.getPropertyValue('--spine');
+    card.style.setProperty('--spine-color', color);
+  });
+  const styleTag = document.getElementById('spine-style') || document.createElement('style');
+  styleTag.id = 'spine-style';
+  styleTag.textContent = `.kanban-card::before{ background: var(--spine); }`;
+  document.head.appendChild(styleTag);
+
+  // drag and drop
+  el.querySelectorAll('.kanban-cards').forEach(col=>{
+    new Sortable(col, {
+      group:'kanban',
+      animation:150,
+      ghostClass:'dragging',
+      onEnd: function(evt){
+        const id = evt.item.dataset.id;
+        const newStage = evt.to.dataset.stage;
+        const proj = projects.find(p=>p.id===id);
+        if(proj){ proj.stage = newStage; saveProjects(); }
+      }
+    });
+  });
+}
+
+function renderAll(){
+  renderMetrics();
+  renderSidebarCounts();
+  if(state.view==='list') renderList(); else renderKanban();
+}
+
+/* ---------------- PROJECT MODAL ---------------- */
+function openProjectModal(id){
+  editingProjectId = id || null;
+  const p = id ? projects.find(x=>x.id===id) : { title:'', channel:'departure', stage:'Idea', notes:'', subscribers:0, channelViews:0, revenue:0, videos:[] };
+  const channelOptions = Object.entries(CHANNELS).map(([k,v])=>`<option value="${k}" ${p.channel===k?'selected':''}>${v.name}</option>`).join('');
+  const stageOptions = STAGES.map(s=>`<option value="${s}" ${p.stage===s?'selected':''}>${s}</option>`).join('');
+
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <h2>${id ? 'Edit project' : 'New project'}</h2>
+        <div class="modal-tabs">
+          <span class="modal-tab active" data-tab="details" onclick="switchModalTab('details')">Details</span>
+          <span class="modal-tab" data-tab="videos" onclick="switchModalTab('videos')">Videos (${(p.videos||[]).length})</span>
+        </div>
+
+        <div id="tab-details">
+          <div class="field-group">
+            <label class="field-label">Title</label>
+            <input id="f-title" value="${escapeAttr(p.title)}" placeholder="e.g. The Lighthouse at Land's End">
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Channel</label>
+              <select id="f-channel">${channelOptions}</select>
+            </div>
+            <div class="field-group">
+              <label class="field-label">Stage</label>
+              <select id="f-stage">${stageOptions}</select>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Channel subscribers</label>
+              <input id="f-subs" type="number" min="0" value="${p.subscribers||0}">
+            </div>
+            <div class="field-group">
+              <label class="field-label">Channel views</label>
+              <input id="f-views" type="number" min="0" value="${p.channelViews||0}">
+            </div>
+          </div>
+          <div class="field-group">
+            <label class="field-label">Revenue from this project (£)</label>
+            <input id="f-revenue" type="number" min="0" step="0.01" value="${p.revenue||0}">
+          </div>
+          <div class="field-group">
+            <label class="field-label">Notes</label>
+            <textarea id="f-notes" placeholder="Ideas, sources, todo...">${escapeHTML(p.notes||'')}</textarea>
+          </div>
+        </div>
+
+        <div id="tab-videos" style="display:none;">
+          <div id="video-list"></div>
+          <button class="btn btn-ghost btn-sm" onclick="addVideoRow()"><i class="ti ti-plus" style="font-size:13px"></i> Add video</button>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-gold" onclick="saveProject()">${id ? 'Save changes' : 'Create project'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+  window._tempVideos = JSON.parse(JSON.stringify(p.videos||[]));
+  renderVideoList();
+}
+
+function switchModalTab(tab){
+  document.querySelectorAll('.modal-tab').forEach(t=>t.classList.toggle('active', t.dataset.tab===tab));
+  document.getElementById('tab-details').style.display = tab==='details' ? '' : 'none';
+  document.getElementById('tab-videos').style.display = tab==='videos' ? '' : 'none';
+}
+
+function renderVideoList(){
+  const el = document.getElementById('video-list');
+  if(!window._tempVideos.length){
+    el.innerHTML = `<p style="font-size:12.5px; color:var(--text-faint); margin-bottom:12px;">No videos added yet.</p>`;
+    return;
+  }
+  const header = `
+    <div class="video-row video-row-header">
+      <span class="video-title-input">Title</span>
+      <span class="video-num-input">Views</span>
+      <span class="video-num-input">Likes</span>
+      <span class="video-num-input">Revenue £</span>
+      <span class="video-published-label">Published</span>
+      <span class="remove-video"></span>
+    </div>
+  `;
+  el.innerHTML = header + window._tempVideos.map((v,i)=>`
+    <div class="video-row">
+      <input class="video-title-input" placeholder="Video title" value="${escapeAttr(v.title||'')}" oninput="window._tempVideos[${i}].title=this.value">
+      <input class="video-num-input" type="number" min="0" placeholder="Views" value="${v.views||0}" oninput="window._tempVideos[${i}].views=Number(this.value)">
+      <input class="video-num-input" type="number" min="0" placeholder="Likes" value="${v.likes||0}" oninput="window._tempVideos[${i}].likes=Number(this.value)">
+      <input class="video-num-input" type="number" min="0" step="0.01" placeholder="Revenue £" value="${v.revenue||0}" oninput="window._tempVideos[${i}].revenue=Number(this.value)">
+      <input type="checkbox" class="video-published-checkbox" ${v.published ? 'checked' : ''} onchange="window._tempVideos[${i}].published=this.checked" title="Mark as published">
+      <button class="icon-btn remove-video" onclick="removeVideoRow(${i})" aria-label="Remove"><i class="ti ti-x"></i></button>
+    </div>
+  `).join('');
+}
+function addVideoRow(){
+  window._tempVideos.push({id:uid(), title:'', views:0, likes:0, revenue:0, published:false});
+  renderVideoList();
+  document.querySelector('.modal-tab[data-tab="videos"]').click();
+}
+function removeVideoRow(i){
+  window._tempVideos.splice(i,1);
+  renderVideoList();
+}
+
+function saveProject(){
+  const title = document.getElementById('f-title').value.trim();
+  if(!title){ document.getElementById('f-title').focus(); return; }
+  const data = {
+    title,
+    channel: document.getElementById('f-channel').value,
+    stage: document.getElementById('f-stage').value,
+    subscribers: Number(document.getElementById('f-subs').value)||0,
+    channelViews: Number(document.getElementById('f-views').value)||0,
+    revenue: Number(document.getElementById('f-revenue').value)||0,
+    notes: document.getElementById('f-notes').value,
+    videos: window._tempVideos.filter(v=>v.title.trim()!=='')
+  };
+  if(editingProjectId){
+    const idx = projects.findIndex(p=>p.id===editingProjectId);
+    projects[idx] = { ...projects[idx], ...data };
+  } else {
+    projects.push({ id: uid(), ...data });
+  }
+  saveProjects();
+  closeModal();
+  renderAll();
+}
+function deleteProject(id){
+  event.stopPropagation();
+  if(!confirm('Delete this project? This cannot be undone.')) return;
+  projects = projects.filter(p=>p.id!==id);
+  saveProjects();
+  renderAll();
+}
+function closeModal(){
+  document.getElementById('modal-root').innerHTML = '';
+  editingProjectId = null;
+  editingBoardItem = { type:null, id:null };
+}
+
+/* ---------------- GENERIC BOARD (App builds / Courses) ---------------- */
+function setBoardView(type, v){
+  boardState[type].view = v;
+  document.getElementById(`btn-list-${type}`).classList.toggle('active', v==='list');
+  document.getElementById(`btn-kanban-${type}`).classList.toggle('active', v==='kanban');
+  document.getElementById(`list-view-${type}`).style.display = v==='list' ? '' : 'none';
+  document.getElementById(`kanban-view-${type}`).style.display = v==='kanban' ? '' : 'none';
+  renderBoard(type);
+}
+function getBoardFiltered(type){
+  return boardData[type] || [];
+}
+function renderBoard(type){
+  const cfg = BOARD_CONFIG[type];
+  const view = boardState[type].view;
+  if(view==='list') renderBoardList(type); else renderBoardKanban(type);
+}
+function renderBoardList(type){
+  const cfg = BOARD_CONFIG[type];
+  const data = getBoardFiltered(type);
+  const el = document.getElementById(`list-view-${type}`);
+  if(!data.length){
+    el.innerHTML = `<div class="empty-state"><i class="ti ti-${type==='apps'?'apps':'school'}"></i><p>No ${cfg.noun}s yet.</p><button class="btn btn-gold" onclick="openBoardItemModal('${type}')"><i class="ti ti-plus" style="font-size:14px"></i> New ${cfg.noun}</button></div>`;
+    return;
+  }
+  const extraField = cfg.fields.find(f=>f.key!=='title' && f.key!=='stage' && f.key!=='notes');
+  const rows = data.map(item=>`
+    <tr class="list-row" onclick="openBoardItemModal('${type}','${item.id}')">
+      <td class="row-spine"><div class="spine-bar" style="background:${cfg.color}"></div></td>
+      <td>
+        <div class="proj-title">${escapeHTML(item.title)}</div>
+        ${item.notes ? `<div class="proj-channel">${escapeHTML(item.notes).slice(0,60)}${item.notes.length>60?'…':''}</div>` : ''}
+      </td>
+      <td><span class="badge" style="background:${cfg.soft}; color:${cfg.color}">${item.stage}</span></td>
+      <td class="stat-cell">${extraField && item[extraField.key] ? escapeHTML(item[extraField.key]) : ''}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="row-actions">
+          <button class="icon-btn" onclick="openBoardItemModal('${type}','${item.id}')" aria-label="Edit"><i class="ti ti-edit"></i></button>
+          <button class="icon-btn" onclick="deleteBoardItem('${type}','${item.id}')" aria-label="Delete"><i class="ti ti-trash"></i></button>
+        </div>
+      </td>
+    </tr>
+  `).join('');
+  el.innerHTML = `<table class="list-table"><thead><tr><th></th><th>${cfg.noun==='app'?'App':'Course'}</th><th>Stage</th><th>${extraField?extraField.label:''}</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+function renderBoardKanban(type){
+  const cfg = BOARD_CONFIG[type];
+  const data = getBoardFiltered(type);
+  const el = document.getElementById(`kanban-view-${type}`);
+  const cols = cfg.stages.map(stage=>{
+    const items = data.filter(i=>i.stage===stage);
+    const cards = items.map(item=>`
+      <div class="kanban-card" draggable="true" data-id="${item.id}" style="--spine:${cfg.color}" onclick="openBoardItemModal('${type}','${item.id}')">
+        <div class="kanban-card-title">${escapeHTML(item.title)}</div>
+        <div class="kanban-card-meta"><span style="color:${cfg.color}">${cfg.noun==='app'?'App':'Course'}</span></div>
+      </div>
+    `).join('');
+    return `
+      <div class="kanban-col">
+        <div class="kanban-col-head">
+          <span class="kanban-col-title">${stage}</span>
+          <span class="kanban-col-count">${items.length}</span>
+        </div>
+        <div class="kanban-cards" data-stage="${stage}">${cards}</div>
+      </div>
+    `;
+  }).join('');
+  el.innerHTML = `<div class="kanban" style="grid-template-columns: repeat(${cfg.stages.length}, minmax(0,1fr));">${cols}</div>`;
+
+  const styleTag = document.getElementById('spine-style') || document.createElement('style');
+  styleTag.id = 'spine-style';
+  styleTag.textContent = `.kanban-card::before{ background: var(--spine); }`;
+  document.head.appendChild(styleTag);
+
+  el.querySelectorAll('.kanban-cards').forEach(col=>{
+    new Sortable(col, {
+      group:'kanban-'+type,
+      animation:150,
+      ghostClass:'dragging',
+      onEnd: function(evt){
+        const id = evt.item.dataset.id;
+        const newStage = evt.to.dataset.stage;
+        const item = boardData[type].find(i=>i.id===id);
+        if(item){ item.stage = newStage; saveBoard(type); }
+      }
+    });
+  });
+}
+function openBoardItemModal(type, id){
+  const cfg = BOARD_CONFIG[type];
+  editingBoardItem = { type, id: id || null };
+  const item = id ? boardData[type].find(x=>x.id===id) : { title:'', stage:cfg.stages[0], notes:'' };
+
+  const fieldsHTML = cfg.fields.map(f=>{
+    if(f.type==='text'){
+      return `<div class="field-group"><label class="field-label">${f.label}</label><input id="bf-${f.key}" value="${escapeAttr(item[f.key]||'')}" placeholder="${f.placeholder||''}"></div>`;
+    }
+    if(f.type==='textarea'){
+      return `<div class="field-group"><label class="field-label">${f.label}</label><textarea id="bf-${f.key}" placeholder="${f.placeholder||''}">${escapeHTML(item[f.key]||'')}</textarea></div>`;
+    }
+    if(f.type==='stage'){
+      const opts = cfg.stages.map(s=>`<option value="${s}" ${item.stage===s?'selected':''}>${s}</option>`).join('');
+      return `<div class="field-group"><label class="field-label">${f.label}</label><select id="bf-stage">${opts}</select></div>`;
+    }
+    if(f.type==='select'){
+      const opts = f.options.map(o=>`<option value="${o}" ${item[f.key]===o?'selected':''}>${o}</option>`).join('');
+      return `<div class="field-group"><label class="field-label">${f.label}</label><select id="bf-${f.key}">${opts}</select></div>`;
+    }
+    return '';
+  }).join('');
+
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <h2>${id ? `Edit ${cfg.noun}` : `New ${cfg.noun}`}</h2>
+        ${fieldsHTML}
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-gold" onclick="saveBoardItem('${type}')">${id ? 'Save changes' : `Create ${cfg.noun}`}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function saveBoardItem(type){
+  const cfg = BOARD_CONFIG[type];
+  const title = document.getElementById('bf-title').value.trim();
+  if(!title){ document.getElementById('bf-title').focus(); return; }
+  const data = { title };
+  cfg.fields.forEach(f=>{
+    if(f.key==='title') return;
+    const el = document.getElementById(f.type==='stage' ? 'bf-stage' : `bf-${f.key}`);
+    if(el) data[f.key] = el.value;
+  });
+  const id = editingBoardItem.id;
+  if(id){
+    const idx = boardData[type].findIndex(i=>i.id===id);
+    boardData[type][idx] = { ...boardData[type][idx], ...data };
+  } else {
+    boardData[type].push({ id: uid(), ...data });
+  }
+  saveBoard(type);
+  closeModal();
+  renderBoard(type);
+}
+function deleteBoardItem(type, id){
+  event.stopPropagation();
+  const cfg = BOARD_CONFIG[type];
+  if(!confirm(`Delete this ${cfg.noun}? This cannot be undone.`)) return;
+  boardData[type] = boardData[type].filter(i=>i.id!==id);
+  saveBoard(type);
+  renderBoard(type);
+}
+
+/* ---------------- SOCIAL MEDIA (live view derived from projects/videos) ---------------- */
+function filterSocialPlatform(platform, el){
+  socialState.platformFilter = platform;
+  document.querySelectorAll('#section-social .chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  renderSocialMedia();
+}
+function getAllVideosWithContext(){
+  const out = [];
+  projects.forEach(p=>{
+    (p.videos||[]).forEach(v=>{
+      out.push({ video: v, project: p });
+    });
+  });
+  return out;
+}
+function videoIsPostedAnywhere(v){
+  return !!(v.social && (v.social.facebook?.posted || v.social.instagram?.posted || v.social.tiktok?.posted));
+}
+function renderSocialMetrics(){
+  const all = getAllVideosWithContext();
+  const platformTotals = { facebook:{views:0,followers:0}, instagram:{views:0,followers:0}, tiktok:{views:0,followers:0} };
+  let postedCount = 0;
+  all.forEach(({video})=>{
+    if(videoIsPostedAnywhere(video)) postedCount++;
+    Object.keys(PLATFORMS).forEach(plat=>{
+      const s = video.social && video.social[plat];
+      if(s && s.posted){
+        platformTotals[plat].views += Number(s.views)||0;
+        platformTotals[plat].followers = Math.max(platformTotals[plat].followers, Number(s.followers)||0);
+      }
+    });
+  });
+  const el = document.getElementById('social-metrics-strip');
+  el.innerHTML = `
+    <div class="metric-card">
+      <div class="metric-label">Videos posted</div>
+      <div class="metric-value">${postedCount} <span style="font-size:14px; color:var(--text-faint); font-weight:400;">/ ${all.length}</span></div>
+      <div class="metric-delta">On at least one platform</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Facebook views</div>
+      <div class="metric-value">${platformTotals.facebook.views.toLocaleString()}</div>
+      <div class="metric-delta">${platformTotals.facebook.followers.toLocaleString()} followers</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Instagram views</div>
+      <div class="metric-value">${platformTotals.instagram.views.toLocaleString()}</div>
+      <div class="metric-delta">${platformTotals.instagram.followers.toLocaleString()} followers</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">TikTok views</div>
+      <div class="metric-value">${platformTotals.tiktok.views.toLocaleString()}</div>
+      <div class="metric-delta">${platformTotals.tiktok.followers.toLocaleString()} followers</div>
+    </div>
+  `;
+}
+function renderSocialMedia(){
+  renderSocialMetrics();
+  const q = (document.getElementById('social-search-input')?.value || '').toLowerCase();
+  let all = getAllVideosWithContext();
+
+  if(socialState.platformFilter === 'unposted'){
+    all = all.filter(({video}) => !videoIsPostedAnywhere(video));
+  } else if(socialState.platformFilter !== 'all'){
+    const plat = socialState.platformFilter;
+    all = all.filter(({video}) => video.social && video.social[plat] && video.social[plat].posted);
+  }
+  if(q){
+    all = all.filter(({video, project}) => video.title.toLowerCase().includes(q) || project.title.toLowerCase().includes(q));
+  }
+
+  const el = document.getElementById('social-media-list');
+  if(all.length === 0){
+    el.innerHTML = `<div class="empty-state"><i class="ti ti-share"></i><p>No videos match these filters. Add videos under a project in YouTube Channels first.</p></div>`;
+    return;
+  }
+
+  const rows = all.map(({video, project})=>{
+    const ch = CHANNELS[project.channel];
+    const platformBadges = Object.entries(PLATFORMS).map(([key, name])=>{
+      const s = video.social && video.social[key];
+      const posted = s && s.posted;
+      return `<span class="badge" style="background:${posted ? 'var(--record-soft)' : 'rgba(127,127,127,0.1)'}; color:${posted ? 'var(--record)' : 'var(--text-faint)'}; margin-right:4px;">${name}${posted ? ' ✓' : ''}</span>`;
+    }).join('');
+    return `
+      <tr class="list-row" onclick="openSocialVideoModal('${project.id}','${video.id}')">
+        <td class="row-spine"><div class="spine-bar" style="background:${ch.color}"></div></td>
+        <td>
+          <div class="proj-title">${escapeHTML(video.title)}</div>
+          <div class="proj-channel">${ch.name} · ${escapeHTML(project.title)}</div>
+        </td>
+        <td>${platformBadges}</td>
+        <td class="stat-cell"><b>${(video.views||0).toLocaleString()}</b> YouTube views</td>
+        <td onclick="event.stopPropagation()">
+          <div class="row-actions">
+            <button class="icon-btn" onclick="openSocialVideoModal('${project.id}','${video.id}')" aria-label="Edit"><i class="ti ti-edit"></i></button>
+          </div>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  el.innerHTML = `
+    <table class="list-table">
+      <thead><tr><th></th><th>Video</th><th>Platforms</th><th>YouTube</th><th></th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+let editingSocialVideo = { projectId:null, videoId:null };
+function openSocialVideoModal(projectId, videoId){
+  const project = projects.find(p=>p.id===projectId);
+  if(!project) return;
+  const video = (project.videos||[]).find(v=>v.id===videoId);
+  if(!video) return;
+  editingSocialVideo = { projectId, videoId };
+  if(!video.social) video.social = {};
+
+  const platformBlocks = Object.entries(PLATFORMS).map(([key, name])=>{
+    const s = video.social[key] || { posted:false, views:0, followers:0 };
+    return `
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px;">
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; margin-bottom:${s.posted?'12px':'0'};">
+          <input type="checkbox" class="video-published-checkbox" id="sv-${key}-posted" ${s.posted ? 'checked' : ''} onchange="toggleSocialPlatformFields('${key}', this.checked)">
+          <span style="font-weight:500; font-size:13.5px;">Posted to ${name}</span>
+        </label>
+        <div id="sv-${key}-fields" style="display:${s.posted ? 'grid' : 'none'}; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px;">
+          <div class="field-group" style="margin-bottom:0;">
+            <label class="field-label">Views</label>
+            <input id="sv-${key}-views" type="number" min="0" value="${s.views||0}">
+          </div>
+          <div class="field-group" style="margin-bottom:0;">
+            <label class="field-label">Followers (account)</label>
+            <input id="sv-${key}-followers" type="number" min="0" value="${s.followers||0}">
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) closeModal()">
+      <div class="modal">
+        <h2>${escapeHTML(video.title)}</h2>
+        <p style="font-size:12.5px; color:var(--text-dim); margin-bottom:18px;">From <b style="color:var(--text)">${escapeHTML(project.title)}</b> — tick a platform once you've uploaded this video there.</p>
+        ${platformBlocks}
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-gold" onclick="saveSocialVideo()">Save changes</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function toggleSocialPlatformFields(key, checked){
+  document.getElementById(`sv-${key}-fields`).style.display = checked ? 'grid' : 'none';
+}
+function saveSocialVideo(){
+  const { projectId, videoId } = editingSocialVideo;
+  const project = projects.find(p=>p.id===projectId);
+  if(!project) return;
+  const video = (project.videos||[]).find(v=>v.id===videoId);
+  if(!video) return;
+  if(!video.social) video.social = {};
+
+  Object.keys(PLATFORMS).forEach(key=>{
+    const posted = document.getElementById(`sv-${key}-posted`).checked;
+    video.social[key] = {
+      posted,
+      views: posted ? (Number(document.getElementById(`sv-${key}-views`).value)||0) : 0,
+      followers: posted ? (Number(document.getElementById(`sv-${key}-followers`).value)||0) : 0,
+    };
+  });
+
+  saveProjects();
+  closeModal();
+  renderSocialMedia();
+}
+
+/* ---------------- IMPORT / EXPORT ---------------- */
+function exportData(){
+  const blob = new Blob([JSON.stringify({projects, apps: boardData.apps, courses: boardData.courses}, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'one-more-studio-data.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('import-file').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const data = JSON.parse(evt.target.result);
+      if(data.projects){ projects = data.projects; saveProjects(); }
+      if(data.apps){ boardData.apps = data.apps; saveBoard('apps'); }
+      if(data.courses){ boardData.courses = data.courses; saveBoard('courses'); }
+      renderAll();
+      updateHomeStats();
+    }catch(err){ alert('Could not read that file.'); }
+  };
+  reader.readAsText(file);
+});
+
+/* ---------------- EXCEL IMPORT (YouTube Channels) ---------------- */
+function matchChannelFromHeader(header){
+  if(!header) return null;
+  const h = header.toLowerCase();
+  for(const [key, ch] of Object.entries(CHANNELS)){
+    // match on the channel's distinguishing word: departure / narrative / record / dynasty
+    const word = ch.name.replace('One More ','').toLowerCase();
+    if(h.includes(word)) return key;
+  }
+  return null;
+}
+
+function parseExcelSheet(rows){
+  // rows: array of row arrays (raw cell values), first row = headers
+  const headers = rows[0] || [];
+  const colChannels = headers.map(h => matchChannelFromHeader(h));
+
+  const columns = headers.map((h, colIdx) => {
+    const channel = colChannels[colIdx];
+    if(!channel) return null;
+    const cells = rows.slice(1).map(r => (r[colIdx] !== undefined && r[colIdx] !== null) ? String(r[colIdx]).trim() : '');
+    return { colIdx, channel, header: h, cells };
+  }).filter(Boolean);
+
+  const newProjects = [];
+  const unmatchedHeaders = headers.filter((h, i) => h && !colChannels[i]);
+
+  columns.forEach(col => {
+    let currentSeries = null;
+    col.cells.forEach(cell => {
+      if(cell === ''){
+        currentSeries = null; // blank row ends the current series
+        return;
+      }
+      if(currentSeries === null){
+        // this cell starts a new series
+        currentSeries = {
+          id: uid(),
+          title: cell,
+          channel: col.channel,
+          stage: 'Idea',
+          notes: '',
+          subscribers: 0,
+          channelViews: 0,
+          revenue: 0,
+          videos: []
+        };
+        newProjects.push(currentSeries);
+      } else {
+        // subsequent non-blank cells are videos under the current series
+        currentSeries.videos.push({ id: uid(), title: cell, views:0, likes:0, revenue:0, published:false });
+      }
+    });
+  });
+
+  return { newProjects, unmatchedHeaders, matchedChannels: columns.map(c=>c.channel) };
+}
+
+let pendingImportProjects = [];
+
+document.getElementById('excel-import-file').addEventListener('change', function(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = function(evt){
+    try{
+      const wb = XLSX.read(evt.target.result, { type:'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+      const result = parseExcelSheet(rows);
+
+      if(result.newProjects.length === 0){
+        alert('No projects could be matched. Make sure your column headers include the channel name (e.g. "One More Record", "One More Dynasty").');
+        e.target.value = '';
+        return;
+      }
+      pendingImportProjects = result.newProjects;
+      showImportPreview(result);
+    }catch(err){
+      alert('Could not read that file. Make sure it is a valid .xlsx file.');
+      console.error(err);
+    }
+    e.target.value = '';
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+function showImportPreview(result){
+  const grouped = {};
+  result.newProjects.forEach(p=>{
+    if(!grouped[p.channel]) grouped[p.channel] = [];
+    grouped[p.channel].push(p);
+  });
+
+  const summaryHTML = Object.entries(grouped).map(([chKey, projs])=>{
+    const ch = CHANNELS[chKey];
+    const totalVideos = projs.reduce((s,p)=>s+p.videos.length,0);
+    const listHTML = projs.map(p=>`
+      <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border); font-size:13px;">
+        <span>${escapeHTML(p.title)}</span>
+        <span style="color:var(--text-faint)">${p.videos.length} video${p.videos.length===1?'':'s'}</span>
+      </div>
+    `).join('');
+    return `
+      <div style="margin-bottom:18px;">
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+          <span class="nav-dot" style="background:${ch.color}"></span>
+          <span style="font-weight:600; font-size:13.5px;">${ch.name}</span>
+          <span style="color:var(--text-faint); font-size:12px;">— ${projs.length} project${projs.length===1?'':'s'}, ${totalVideos} video${totalVideos===1?'':'s'}</span>
+        </div>
+        <div style="max-height:200px; overflow-y:auto; background:var(--surface); border-radius:8px; padding:0 12px;">${listHTML}</div>
+      </div>
+    `;
+  }).join('');
+
+  const unmatchedHTML = result.unmatchedHeaders.length ? `
+    <div style="background:var(--departure-soft); color:var(--departure); border-radius:8px; padding:10px 14px; font-size:12.5px; margin-top:10px;">
+      <i class="ti ti-alert-triangle" style="font-size:13px"></i>
+      Column${result.unmatchedHeaders.length===1?'':'s'} "${result.unmatchedHeaders.join('", "')}" couldn't be matched to a channel and was skipped.
+    </div>
+  ` : '';
+
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this) cancelImport()">
+      <div class="modal" style="width:600px;">
+        <h2>Import preview</h2>
+        <p style="font-size:13px; color:var(--text-dim); margin-bottom:18px;">
+          This will create <b style="color:var(--text)">${result.newProjects.length} new project${result.newProjects.length===1?'':'s'}</b>
+          with stage set to <b style="color:var(--text)">Idea</b>. Existing projects won't be touched.
+        </p>
+        ${summaryHTML}
+        ${unmatchedHTML}
+        <div class="modal-actions">
+          <button class="btn btn-ghost" onclick="cancelImport()">Cancel</button>
+          <button class="btn btn-gold" onclick="confirmImport()">Import ${result.newProjects.length} project${result.newProjects.length===1?'':'s'}</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+function cancelImport(){
+  pendingImportProjects = [];
+  closeModal();
+}
+function confirmImport(){
+  projects = projects.concat(pendingImportProjects);
+  pendingImportProjects = [];
+  saveProjects();
+  closeModal();
+  renderAll();
+}
+
+/* ---------------- UTIL ---------------- */
+function escapeHTML(str){
+  return (str||'').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+}
+function escapeAttr(str){ return escapeHTML(str).replace(/"/g,'&quot;'); }
+
+/* ---------------- ICON FONT ---------------- */
+const tablerLink = document.createElement('link');
+tablerLink.rel = 'stylesheet';
+tablerLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/@tabler/icons-webfont/3.31.0/tabler-icons.min.css';
+document.head.appendChild(tablerLink);
+
+checkSession();
+document.getElementById('login-email').addEventListener('keydown', e=>{ if(e.key==='Enter') handleLogin(); });
+document.getElementById('login-password').addEventListener('keydown', e=>{ if(e.key==='Enter') handleLogin(); });
+</script>
+</body>
+</html>
