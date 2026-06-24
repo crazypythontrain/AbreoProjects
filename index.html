@@ -208,6 +208,13 @@
   .sub-row td{ padding-top:9px; padding-bottom:9px; }
   .sub-row-indent{ display:flex; align-items:center; gap:6px; padding-left:30px; }
   .sub-row-title{ font-size:13px; color:var(--text-dim); }
+  .video-stage-select-inline{
+    font-size:11.5px; padding:5px 8px; border-radius:6px; cursor:pointer;
+    background: rgba(127,127,127,0.1); border:1px solid var(--border); color:var(--text-dim);
+    max-width:150px;
+  }
+  .video-stage-select-inline[data-stage="Published"]{ background:var(--record-soft); color:var(--record); border-color:transparent; }
+  .video-stage-select-inline[data-stage="Idea"]{ background:rgba(127,127,127,0.1); color:var(--text-faint); border-color:transparent; }
 
   /* ---------- Planning table ---------- */
   .planning-scroll-hint{
@@ -215,36 +222,54 @@
     margin-bottom:8px; padding-left:2px;
   }
   .planning-table-scroll{
-    overflow-x:auto; border:1px solid var(--border); border-radius:12px;
-    width:100%; display:block;
+    overflow-x:auto; border:1px solid var(--border); border-radius:14px;
+    width:100%; display:block; background:var(--surface);
   }
   #planning-table-container, #courses-planning-views{ max-width:100%; overflow:hidden; }
-  table.planning-table{ width:auto; }
-  .planning-table th, .planning-table td{ padding:9px 12px; }
-  .planning-table thead tr:first-child th{ padding-bottom:6px; }
-  .planning-table thead{ background: rgba(255,255,255,0.02); }
-  .planning-scenario-head{ text-align:center; border-left:1px solid var(--border); font-weight:600; }
-  .planning-sub-head{ font-size:10px; text-align:center; padding-top:2px !important; padding-bottom:8px !important; }
+  table.planning-table{ width:auto; border-collapse:separate; border-spacing:0; }
+  .planning-table th, .planning-table td{ padding:11px 14px; border:none; }
+  .planning-table thead tr:first-child th{
+    padding-top:14px; padding-bottom:8px; font-size:11px; font-weight:600;
+    color:var(--text-faint); text-transform:uppercase; letter-spacing:0.05em;
+    border-bottom:1px solid var(--border);
+  }
+  .planning-table thead tr:last-child th{
+    padding-top:0; padding-bottom:12px; font-size:10px; font-weight:500;
+    color:var(--text-faint); border-bottom:1px solid var(--border-strong);
+  }
+  .planning-scenario-head{
+    text-align:center; background: var(--gold-soft); color: var(--gold) !important;
+    border-radius:6px 6px 0 0;
+  }
+  .planning-sub-head{
+    text-align:center; background: rgba(212,175,106,0.05);
+  }
   .planning-sortable{
     cursor:pointer; user-select:none; white-space:nowrap; transition: color 0.12s;
+    position:relative;
   }
-  .planning-sortable:hover{ color: var(--gold); }
-  .planning-data-row:nth-child(even){ background: rgba(255,255,255,0.012); }
+  .planning-sortable .ti{ opacity:0; transition: opacity 0.12s; margin-left:3px; font-size:11px; }
+  .planning-sortable:hover{ color: var(--text); }
+  .planning-sortable:hover .ti{ opacity:0.6; }
+  .planning-sortable.is-sorted .ti{ opacity:1; }
   .planning-data-row td{ border-bottom:1px solid var(--border); }
+  .planning-data-row:last-child td{ border-bottom:none; }
+  .planning-data-row:hover{ background: rgba(255,255,255,0.015); }
   .planning-cell{ text-align:center; }
   .planning-sticky-col{
     position:sticky; left:0; background:var(--surface); z-index:2;
     box-shadow: 2px 0 4px rgba(0,0,0,0.06);
-    text-align:left; min-width:160px;
+    text-align:left; min-width:170px;
   }
   .planning-total-label{ font-weight:600; font-size:12.5px; white-space:nowrap; }
-  .planning-range{ display:flex; gap:3px; align-items:center; justify-content:center; }
+  .planning-range{ display:flex; gap:4px; align-items:center; justify-content:center; }
   .planning-range input{
-    width:58px; font-size:11.5px; padding:5px 4px; text-align:center; flex-shrink:0;
+    width:56px; font-size:12px; padding:6px 4px; text-align:center; flex-shrink:0;
+    border-radius:6px;
   }
-  .planning-range span{ color:var(--text-faint); font-size:10px; flex-shrink:0; }
-  .planning-input-title{ width:160px; font-size:12.5px; padding:6px 8px; }
-  .planning-input-sm{ width:70px; font-size:12px; padding:6px 6px; }
+  .planning-range span{ color:var(--text-faint); font-size:11px; flex-shrink:0; }
+  .planning-input-title{ width:170px; font-size:13px; padding:7px 9px; font-weight:500; }
+  .planning-input-sm{ width:72px; font-size:12.5px; padding:7px 7px; }
 
   /* ---------- Kanban ---------- */
   .kanban{ display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:14px; align-items:start; }
@@ -307,6 +332,11 @@
   }
   .video-published-label{ flex-shrink:0; width:32px; text-align:center; }
   .video-published-checkbox{ width:18px; height:18px; flex-shrink:0; accent-color: var(--gold); cursor:pointer; }
+  .video-stage-label{ flex-shrink:0; width:140px; text-align:left; }
+  .video-stage-select{
+    flex-shrink:0; width:140px; font-size:12px; padding:6px 8px; border-radius:6px;
+    background:var(--surface); border:1px solid var(--border-strong); color:var(--text); cursor:pointer;
+  }
 
   ::-webkit-scrollbar{ width:8px; height:8px; }
   ::-webkit-scrollbar-thumb{ background: rgba(255,255,255,0.1); border-radius:4px; }
@@ -1107,7 +1137,7 @@ function renderList(){
     const videos = p.videos||[];
     const videoCount = videos.length;
     const videoViews = videos.reduce((s,v)=>s+(v.views||0),0);
-    const publishedCount = videos.filter(v=>v.published).length;
+    const publishedCount = videos.filter(v=>videoStage(v)==='Published').length;
     const isExpanded = expandedProjects.has(p.id);
 
     const chevron = videoCount > 0
@@ -1123,7 +1153,11 @@ function renderList(){
             <span class="sub-row-title">${escapeHTML(v.title)}</span>
           </div>
         </td>
-        <td><span class="badge" style="background:${v.published ? 'var(--record-soft)' : 'rgba(127,127,127,0.12)'}; color:${v.published ? 'var(--record)' : 'var(--text-faint)'};">${v.published ? 'Published' : 'Not published'}</span></td>
+        <td onclick="event.stopPropagation()">
+          <select class="video-stage-select-inline" data-stage="${videoStage(v)}" onchange="updateVideoStage('${p.id}','${v.id}', this.value)">
+            ${STAGES.map(s=>`<option value="${s}" ${videoStage(v)===s?'selected':''}>${s}</option>`).join('')}
+          </select>
+        </td>
         <td class="stat-cell">—</td>
         <td class="stat-cell">—</td>
         <td class="stat-cell"><b>${(v.views||0).toLocaleString()}</b> views <span style="color:var(--text-faint)">· ${(v.likes||0).toLocaleString()} likes</span></td>
@@ -1172,6 +1206,20 @@ function renderList(){
 function toggleExpand(id){
   if(expandedProjects.has(id)) expandedProjects.delete(id);
   else expandedProjects.add(id);
+  renderList();
+}
+function videoStage(v){
+  if(v.stage) return v.stage;
+  return v.published ? 'Published' : 'Idea';
+}
+function updateVideoStage(projectId, videoId, newStage){
+  const project = projects.find(p=>p.id===projectId);
+  if(!project) return;
+  const video = (project.videos||[]).find(v=>v.id===videoId);
+  if(!video) return;
+  video.stage = newStage;
+  video.published = newStage === 'Published';
+  saveProjects();
   renderList();
 }
 
@@ -1331,7 +1379,7 @@ function renderVideoList(){
       <span class="video-num-input">Views</span>
       <span class="video-num-input">Likes</span>
       <span class="video-num-input">Revenue £</span>
-      <span class="video-published-label">Published</span>
+      <span class="video-stage-label">Stage</span>
       <span class="remove-video"></span>
     </div>
   `;
@@ -1341,13 +1389,15 @@ function renderVideoList(){
       <input class="video-num-input" type="number" min="0" placeholder="Views" value="${v.views||0}" oninput="window._tempVideos[${i}].views=Number(this.value)">
       <input class="video-num-input" type="number" min="0" placeholder="Likes" value="${v.likes||0}" oninput="window._tempVideos[${i}].likes=Number(this.value)">
       <input class="video-num-input" type="number" min="0" step="0.01" placeholder="Revenue £" value="${v.revenue||0}" oninput="window._tempVideos[${i}].revenue=Number(this.value)">
-      <input type="checkbox" class="video-published-checkbox" ${v.published ? 'checked' : ''} onchange="window._tempVideos[${i}].published=this.checked" title="Mark as published">
+      <select class="video-stage-select" onchange="window._tempVideos[${i}].stage=this.value; window._tempVideos[${i}].published=(this.value==='Published')">
+        ${STAGES.map(s=>`<option value="${s}" ${videoStage(v)===s?'selected':''}>${s}</option>`).join('')}
+      </select>
       <button class="icon-btn remove-video" onclick="removeVideoRow(${i})" aria-label="Remove"><i class="ti ti-x"></i></button>
     </div>
   `).join('');
 }
 function addVideoRow(){
-  window._tempVideos.push({id:uid(), title:'', views:0, likes:0, revenue:0, published:false});
+  window._tempVideos.push({id:uid(), title:'', views:0, likes:0, revenue:0, stage:'Idea', published:false});
   renderVideoList();
   document.querySelector('.modal-tab[data-tab="videos"]').click();
 }
@@ -2212,10 +2262,13 @@ function sortPlanningBy(key){
   renderPlanningTable();
 }
 function sortIndicator(key){
-  if(planningSort.key !== key) return `<i class="ti ti-arrows-sort" style="font-size:11px; opacity:0.4;"></i>`;
+  if(planningSort.key !== key) return `<i class="ti ti-arrows-sort"></i>`;
   return planningSort.direction === 'asc'
-    ? `<i class="ti ti-sort-ascending-2" style="font-size:12px; color:var(--gold);"></i>`
-    : `<i class="ti ti-sort-descending-2" style="font-size:12px; color:var(--gold);"></i>`;
+    ? `<i class="ti ti-sort-ascending-2" style="color:var(--gold);"></i>`
+    : `<i class="ti ti-sort-descending-2" style="color:var(--gold);"></i>`;
+}
+function sortedClass(key){
+  return planningSort.key === key ? 'is-sorted' : '';
 }
 function renderPlanningTable(){
   const el = document.getElementById('planning-table-container');
@@ -2236,11 +2289,11 @@ function renderPlanningTable(){
     });
   }
 
-  const metaHeader = (label, key) => `<th class="planning-sortable" onclick="sortPlanningBy('${key}')">${label} ${sortIndicator(key)}</th>`;
+  const metaHeader = (label, key) => `<th class="planning-sortable ${sortedClass(key)}" onclick="sortPlanningBy('${key}')">${label}${sortIndicator(key)}</th>`;
   const scenarioHeaders = PLANNING_SCENARIOS.map(s=>`<th colspan="2" class="planning-scenario-head">${PLANNING_SCENARIO_LABELS[s]}</th>`).join('');
   const scenarioSubHeaders = PLANNING_SCENARIOS.map(s=>`
-    <th class="planning-sub-head planning-sortable" onclick="sortPlanningBy('${s}.studentsLow')">Students ${sortIndicator(s+'.studentsLow')}</th>
-    <th class="planning-sub-head planning-sortable" onclick="sortPlanningBy('${s}.revenueLow')">Revenue £ ${sortIndicator(s+'.revenueLow')}</th>
+    <th class="planning-sub-head planning-sortable ${sortedClass(s+'.studentsLow')}" onclick="sortPlanningBy('${s}.studentsLow')">Students${sortIndicator(s+'.studentsLow')}</th>
+    <th class="planning-sub-head planning-sortable ${sortedClass(s+'.revenueLow')}" onclick="sortPlanningBy('${s}.revenueLow')">Revenue £${sortIndicator(s+'.revenueLow')}</th>
   `).join('');
 
   const rows = sortedCourses.map(row=>{
@@ -2283,7 +2336,7 @@ function renderPlanningTable(){
       <table class="list-table planning-table">
         <thead>
           <tr>
-            <th class="planning-sticky-col planning-sortable" onclick="sortPlanningBy('title')">Course ${sortIndicator('title')}</th>
+            <th class="planning-sticky-col planning-sortable ${sortedClass('title')}" onclick="sortPlanningBy('title')">Course${sortIndicator('title')}</th>
             ${metaHeader('Length','length')}${metaHeader('Demand','demand')}${metaHeader('Competition','competition')}${metaHeader('Advantage','advantage')}
             ${scenarioHeaders}<th></th>
           </tr>
@@ -2406,7 +2459,7 @@ function parseExcelSheet(rows){
         newProjects.push(currentSeries);
       } else {
         // subsequent non-blank cells are videos under the current series
-        currentSeries.videos.push({ id: uid(), title: cell, views:0, likes:0, revenue:0, published:false });
+        currentSeries.videos.push({ id: uid(), title: cell, views:0, likes:0, revenue:0, stage:'Idea', published:false });
       }
     });
   });
