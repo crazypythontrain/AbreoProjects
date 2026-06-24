@@ -111,9 +111,6 @@
   .nav-item:hover{ background: rgba(255,255,255,0.04); color:var(--text); }
   .nav-item.active{ background: rgba(255,255,255,0.06); color:var(--text); border-color: var(--border-strong); }
   .nav-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .nav-channel-logo{ width:18px; height:18px; border-radius:50%; flex-shrink:0; object-fit:cover; }
-  .row-channel-logo{ width:28px; height:28px; border-radius:50%; flex-shrink:0; object-fit:cover; }
-  .kanban-channel-logo{ width:16px; height:16px; border-radius:50%; object-fit:cover; vertical-align:middle; margin-right:5px; position:relative; top:-1px; }
   .nav-item .count{ margin-left:auto; font-size:11px; color:var(--text-faint); font-weight:500; }
 
   .platform-icon{ width:16px; height:16px; flex-shrink:0; opacity:0.85; }
@@ -223,9 +220,17 @@
   }
   #planning-table-container, #courses-planning-views{ max-width:100%; overflow:hidden; }
   table.planning-table{ width:auto; }
-  .planning-table th, .planning-table td{ padding:8px 10px; }
-  .planning-scenario-head{ text-align:center; border-left:1px solid var(--border); }
-  .planning-sub-head{ font-size:10px; text-align:center; padding-top:0 !important; }
+  .planning-table th, .planning-table td{ padding:9px 12px; }
+  .planning-table thead tr:first-child th{ padding-bottom:6px; }
+  .planning-table thead{ background: rgba(255,255,255,0.02); }
+  .planning-scenario-head{ text-align:center; border-left:1px solid var(--border); font-weight:600; }
+  .planning-sub-head{ font-size:10px; text-align:center; padding-top:2px !important; padding-bottom:8px !important; }
+  .planning-sortable{
+    cursor:pointer; user-select:none; white-space:nowrap; transition: color 0.12s;
+  }
+  .planning-sortable:hover{ color: var(--gold); }
+  .planning-data-row:nth-child(even){ background: rgba(255,255,255,0.012); }
+  .planning-data-row td{ border-bottom:1px solid var(--border); }
   .planning-cell{ text-align:center; }
   .planning-sticky-col{
     position:sticky; left:0; background:var(--surface); z-index:2;
@@ -235,11 +240,11 @@
   .planning-total-label{ font-weight:600; font-size:12.5px; white-space:nowrap; }
   .planning-range{ display:flex; gap:3px; align-items:center; justify-content:center; }
   .planning-range input{
-    width:48px; font-size:11.5px; padding:5px 4px; text-align:center; flex-shrink:0;
+    width:58px; font-size:11.5px; padding:5px 4px; text-align:center; flex-shrink:0;
   }
   .planning-range span{ color:var(--text-faint); font-size:10px; flex-shrink:0; }
-  .planning-input-title{ width:150px; font-size:12.5px; padding:6px 8px; }
-  .planning-input-sm{ width:64px; font-size:12px; padding:6px 6px; }
+  .planning-input-title{ width:160px; font-size:12.5px; padding:6px 8px; }
+  .planning-input-sm{ width:70px; font-size:12px; padding:6px 6px; }
 
   /* ---------- Kanban ---------- */
   .kanban{ display:grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap:14px; align-items:start; }
@@ -1072,9 +1077,7 @@ function renderChannelNavList(){
   const el = document.getElementById('channel-nav-list');
   if(!el) return;
   el.innerHTML = Object.entries(CHANNELS).map(([key, ch])=>{
-    const badge = ch.logo
-      ? `<img src="${escapeAttr(ch.logo)}" class="nav-channel-logo" alt="">`
-      : `<span class="nav-dot" style="background:${ch.color}"></span>`;
+    const badge = `<span class="nav-dot" style="background:${ch.color}"></span>`;
     return `
       <div class="nav-item" data-channel="${key}" onclick="filterChannel('${key}')">
         ${badge} ${escapeHTML(ch.name)}
@@ -1135,7 +1138,6 @@ function renderList(){
         <td>
           <div style="display:flex; align-items:center; gap:6px;">
             ${chevron}
-            ${ch.logo ? `<img src="${escapeAttr(ch.logo)}" class="row-channel-logo" alt="">` : ''}
             <div>
               <div class="proj-title">${escapeHTML(p.title)}</div>
               <div class="proj-channel">${ch.name}</div>
@@ -1191,7 +1193,7 @@ function renderKanban(){
       const ch = CHANNELS[p.channel];
       return `
         <div class="kanban-card" draggable="true" data-id="${p.id}" style="--spine:${ch.color}" onclick="openProjectModal('${p.id}')">
-          <div class="kanban-card-title">${ch.logo ? `<img src="${escapeAttr(ch.logo)}" class="kanban-channel-logo" alt="">` : ''}${escapeHTML(p.title)}</div>
+          <div class="kanban-card-title">${escapeHTML(p.title)}</div>
           <div class="kanban-card-meta">
             <span style="color:${ch.color}">${ch.name.replace('One More ','')}</span>
             <span>${(p.subscribers||0).toLocaleString()} subs</span>
@@ -2190,16 +2192,58 @@ function updatePlanningScenario(id, scenario, key, value){
   savePlanningCourses();
   renderPlanningTotals();
 }
+let planningSort = { key: null, direction: 'asc' };
+function planningSortValue(row, key){
+  if(['title','length','demand','competition','advantage'].includes(key)){
+    return (row[key] || '').toLowerCase();
+  }
+  // key format: "scenario.field" e.g. "realistic.revenueLow"
+  const [scenario, field] = key.split('.');
+  const sc = row[scenario] || {};
+  return Number(sc[field]) || 0;
+}
+function sortPlanningBy(key){
+  if(planningSort.key === key){
+    planningSort.direction = planningSort.direction === 'asc' ? 'desc' : 'asc';
+  } else {
+    planningSort.key = key;
+    planningSort.direction = 'asc';
+  }
+  renderPlanningTable();
+}
+function sortIndicator(key){
+  if(planningSort.key !== key) return `<i class="ti ti-arrows-sort" style="font-size:11px; opacity:0.4;"></i>`;
+  return planningSort.direction === 'asc'
+    ? `<i class="ti ti-sort-ascending-2" style="font-size:12px; color:var(--gold);"></i>`
+    : `<i class="ti ti-sort-descending-2" style="font-size:12px; color:var(--gold);"></i>`;
+}
 function renderPlanningTable(){
   const el = document.getElementById('planning-table-container');
   if(planningCourses.length === 0){
     el.innerHTML = `<div class="empty-state"><i class="ti ti-chart-line"></i><p>No course ideas yet. Add one to start estimating.</p><button class="btn btn-gold" onclick="addPlanningRow()"><i class="ti ti-plus" style="font-size:14px"></i> Add course idea</button></div>`;
     return;
   }
-  const scenarioHeaders = PLANNING_SCENARIOS.map(s=>`<th colspan="2" class="planning-scenario-head">${PLANNING_SCENARIO_LABELS[s]}</th>`).join('');
-  const scenarioSubHeaders = PLANNING_SCENARIOS.map(()=>`<th class="planning-sub-head">Students</th><th class="planning-sub-head">Revenue £</th>`).join('');
 
-  const rows = planningCourses.map(row=>{
+  let sortedCourses = [...planningCourses];
+  if(planningSort.key){
+    sortedCourses.sort((a,b)=>{
+      const va = planningSortValue(a, planningSort.key);
+      const vb = planningSortValue(b, planningSort.key);
+      let cmp;
+      if(typeof va === 'string') cmp = va.localeCompare(vb);
+      else cmp = va - vb;
+      return planningSort.direction === 'asc' ? cmp : -cmp;
+    });
+  }
+
+  const metaHeader = (label, key) => `<th class="planning-sortable" onclick="sortPlanningBy('${key}')">${label} ${sortIndicator(key)}</th>`;
+  const scenarioHeaders = PLANNING_SCENARIOS.map(s=>`<th colspan="2" class="planning-scenario-head">${PLANNING_SCENARIO_LABELS[s]}</th>`).join('');
+  const scenarioSubHeaders = PLANNING_SCENARIOS.map(s=>`
+    <th class="planning-sub-head planning-sortable" onclick="sortPlanningBy('${s}.studentsLow')">Students ${sortIndicator(s+'.studentsLow')}</th>
+    <th class="planning-sub-head planning-sortable" onclick="sortPlanningBy('${s}.revenueLow')">Revenue £ ${sortIndicator(s+'.revenueLow')}</th>
+  `).join('');
+
+  const rows = sortedCourses.map(row=>{
     const textCell = (field, placeholder, cls) => `<input class="${cls}" value="${escapeAttr(row[field]||'')}" placeholder="${placeholder}" oninput="updatePlanningField('${row.id}','${field}', this.value)">`;
     const scenarioCells = PLANNING_SCENARIOS.map(s=>{
       const sc = row[s] || { studentsLow:0, studentsHigh:0, revenueLow:0, revenueHigh:0 };
@@ -2221,7 +2265,7 @@ function renderPlanningTable(){
       `;
     }).join('');
     return `
-      <tr class="list-row" style="cursor:default;">
+      <tr class="list-row planning-data-row" style="cursor:default;">
         <td class="planning-sticky-col">${textCell('title','Course name', 'planning-input-title')}</td>
         <td class="planning-cell">${textCell('length','2-3 hrs', 'planning-input-sm')}</td>
         <td class="planning-cell">${textCell('demand','High', 'planning-input-sm')}</td>
@@ -2234,12 +2278,13 @@ function renderPlanningTable(){
   }).join('');
 
   el.innerHTML = `
-    <div class="planning-scroll-hint"><i class="ti ti-arrow-right" style="font-size:12px"></i> Scroll sideways to see all four scenarios</div>
+    <div class="planning-scroll-hint"><i class="ti ti-arrow-right" style="font-size:12px"></i> Scroll sideways to see all four scenarios · click a column header to sort</div>
     <div class="planning-table-scroll">
       <table class="list-table planning-table">
         <thead>
           <tr>
-            <th class="planning-sticky-col">Course</th><th>Length</th><th>Demand</th><th>Competition</th><th>Advantage</th>
+            <th class="planning-sticky-col planning-sortable" onclick="sortPlanningBy('title')">Course ${sortIndicator('title')}</th>
+            ${metaHeader('Length','length')}${metaHeader('Demand','demand')}${metaHeader('Competition','competition')}${metaHeader('Advantage','advantage')}
             ${scenarioHeaders}<th></th>
           </tr>
           <tr><th class="planning-sticky-col"></th><th></th><th></th><th></th><th></th>${scenarioSubHeaders}<th></th></tr>
@@ -2473,7 +2518,7 @@ function escapeAttr(str){ return escapeHTML(str).replace(/"/g,'&quot;'); }
 /* ---------------- ICON FONT ---------------- */
 const tablerLink = document.createElement('link');
 tablerLink.rel = 'stylesheet';
-tablerLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/@tabler/icons-webfont/3.31.0/tabler-icons.min.css';
+tablerLink.href = 'https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css';
 document.head.appendChild(tablerLink);
 
 checkSession();
